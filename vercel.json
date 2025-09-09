@@ -2,26 +2,22 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/simple.py",
+      "src": "api/test.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
-      "src": "/api/simple",
-      "dest": "/api/simple.py"
+      "src": "/api/test",
+      "dest": "/api/test.py"
     },
     {
-      "src": "/api/(.*)",
-      "dest": "/api/index.py"
+      "src": "/simple",
+      "dest": "/simple.html"
     },
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "src": "/",
+      "dest": "/simple.html"
     }
   ]
 }

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>🎯 ПРОСТОЙ ТЕСТ</title>
+    <style>
+        body { 
+            font-family: Arial; 
+            text-align: center; 
+            margin: 50px; 
+            background: #f0f0f0; 
+        }
+        h1 { color: green; font-size: 3em; }
+        .status { color: #28a745; font-size: 2em; margin: 20px; }
+    </style>
+</head>
+<body>
+    <h1>✅ VERCEL РАБОТАЕТ!</h1>
+    <div class="status">🚀 Успешное развёртывание</div>
+    <p>Если ты видишь эту страницу - значит всё отлично!</p>
+    <p>Время: <span id="time"></span></p>
+    
+    <script>
+        document.getElementById('time').textContent = new Date().toLocaleString();
+    </script>
+</body>
+</html>
