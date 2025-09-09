@@ -1,0 +1,26 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/(.*\\.(html|js|css|png|jpg|gif|ico))",
+      "dest": "/web/$1"
+    },
+    {
+      "src": "/",
+      "dest": "/web/index.html"
+    }
+  ],
+  "env": {
+    "BOT_API_TOKEN": "@bot_api_token"
+  }
+}
