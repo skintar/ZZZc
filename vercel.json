@@ -19,8 +19,5 @@
       "src": "/",
       "dest": "/web/index.html"
     }
-  ],
-  "env": {
-    "BOT_API_TOKEN": "@bot_api_token"
-  }
+  ]
 }
