@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Рейтинг персонажей</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Загрузка -->
+        <div id="loading" class="screen">
+            <div class="loading-spinner"></div>
+            <p>Загружаем персонажей...</p>
+        </div>
+
+        <!-- Главное меню -->
+        <div id="main-menu" class="screen hidden">
+            <div class="header">
+                <h1>🏆 Рейтинг персонажей</h1>
+                <p>Оцени персонажей и создай свой топ!</p>
+            </div>
+            
+            <div class="menu-buttons">
+                <button id="start-rating" class="btn btn-primary">
+                    ⭐ Начать оценку
+                </button>
+                <button id="new-characters" class="btn btn-secondary">
+                    🆕 Оценить новых
+                </button>
+                <button id="show-ranking" class="btn btn-outline">
+                    📊 Мой рейтинг
+                </button>
+                <button id="global-ranking" class="btn btn-outline">
+                    🌍 Глобальный топ
+                </button>
+            </div>
+        </div>
+
+        <!-- Сравнение персонажей -->
+        <div id="comparison" class="screen hidden">
+            <div class="comparison-header">
+                <h2>Кто тебе больше нравится?</h2>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p class="progress-text" id="progress-text">0 / 0</p>
+            </div>
+
+            <div class="characters-container">
+                <div class="character-card" id="char-a">
+                    <div class="character-image">
+                        <img id="char-a-img" src="" alt="">
+                    </div>
+                    <h3 id="char-a-name"></h3>
+                    <button class="choose-btn" data-choice="a">
+                        ❤️ Выбрать
+                    </button>
+                </div>
+
+                <div class="vs-divider">
+                    <span>VS</span>
+                </div>
+
+                <div class="character-card" id="char-b">
+                    <div class="character-image">
+                        <img id="char-b-img" src="" alt="">
+                    </div>
+                    <h3 id="char-b-name"></h3>
+                    <button class="choose-btn" data-choice="b">
+                        ❤️ Выбрать
+                    </button>
+                </div>
+            </div>
+
+            <div class="comparison-controls">
+                <button id="go-back" class="btn btn-outline hidden">
+                    ⬅️ Назад
+                </button>
+                <button id="skip-comparison" class="btn btn-outline">
+                    ⏭️ Пропустить
+                </button>
+            </div>
+        </div>
+
+        <!-- Результат рейтинга -->
+        <div id="ranking-result" class="screen hidden">
+            <div class="header">
+                <h1>🏆 Твой рейтинг</h1>
+                <p>Отлично! Вот твой персональный топ персонажей</p>
+            </div>
+
+            <div class="ranking-container">
+                <div id="ranking-list"></div>
+            </div>
+
+            <div class="result-controls">
+                <button id="show-full-ranking" class="btn btn-outline">
+                    📋 Показать весь рейтинг
+                </button>
+                <button id="start-new-session" class="btn btn-primary">
+                    🔄 Новая оценка
+                </button>
+                <button id="back-to-menu" class="btn btn-secondary">
+                    🏠 Главное меню
+                </button>
+            </div>
+        </div>
+
+        <!-- Полный рейтинг -->
+        <div id="full-ranking" class="screen hidden">
+            <div class="header">
+                <h1>📊 Полный рейтинг</h1>
+                <button id="back-to-result" class="btn btn-outline">
+                    ⬅️ Назад
+                </button>
+            </div>
+
+            <div class="ranking-container">
+                <div id="full-ranking-list"></div>
+            </div>
+        </div>
+
+        <!-- Глобальный рейтинг -->
+        <div id="global-ranking-screen" class="screen hidden">
+            <div class="header">
+                <h1>🌍 Глобальный топ</h1>
+                <button id="back-to-menu-from-global" class="btn btn-outline">
+                    ⬅️ Назад
+                </button>
+            </div>
+
+            <div class="ranking-container">
+                <div id="global-ranking-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
