@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TMA Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 50px;
+            background: #f0f0f0;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .status {
+            color: #28a745;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        .link {
+            display: inline-block;
+            margin: 10px;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 TMA Vercel Deploy</h1>
+        <p class="status">✅ Deployment Successful!</p>
+        <p>Твой Telegram Mini App успешно развёрнут на Vercel</p>
+        
+        <div>
+            <a href="/web/index.html" class="link">🎮 Открыть TMA</a>
+            <a href="/api/health" class="link">🔍 Health Check</a>
+            <a href="/api/characters" class="link">👥 Characters API</a>
+        </div>
+        
+        <hr style="margin: 20px 0;">
+        
+        <h3>Следующие шаги:</h3>
+        <ol style="text-align: left;">
+            <li>Скопируй URL этой страницы</li>
+            <li>Замени в .env: <code>TMA_DOMAIN=твой-домен.vercel.app</code></li>
+            <li>@BotFather → Menu Button → URL: <code>https://твой-домен.vercel.app/web/index.html</code></li>
+            <li>Перезапусти локального бота</li>
+        </ol>
+    </div>
+</body>
+</html>

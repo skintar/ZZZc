@@ -1,50 +1,60 @@
-"""
-Vercel serverless function для API
-"""
+from aiohttp import web
+from aiohttp.web import Request, Response
 import os
 import sys
-import asyncio
+import json
 from pathlib import Path
 
 # Добавляем корневую директорию в путь
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from web_server import TMAWebServer
-from bot import CharacterBot
-from config import BotConfig
+# Простая заглушка для API endpoints
+async def health_check(request: Request) -> Response:
+    """Health check endpoint."""
+    return web.json_response({
+        'status': 'healthy',
+        'message': 'TMA API is running',
+        'timestamp': '2025-09-09'
+    })
 
-# Создаем конфигурацию для Vercel
-config = BotConfig(
-    api_token=os.getenv("BOT_API_TOKEN", "dummy_token"),
-    characters_dir="Персонажи",
-    tma_domain=os.getenv("VERCEL_URL", "localhost:3000"),
-    web_port=3000
-)
+async def get_characters(request: Request) -> Response:
+    """Get characters list."""
+    # Заглушка для персонажей
+    characters = [
+        {'index': i, 'name': f'Character {i+1}', 'image_path': f'/images/char{i+1}.png'}
+        for i in range(10)
+    ]
+    return web.json_response(characters)
 
-# Создаем бота и веб-сервер
-try:
-    bot = CharacterBot(config)
-    web_server = TMAWebServer(bot)
-    app = web_server.app
-except Exception as e:
-    print(f"Error initializing app: {e}")
-    from aiohttp import web
-    app = web.Application()
+# Создаем приложение
+app = web.Application()
+
+# Добавляем маршруты
+app.router.add_get('/api/health', health_check)
+app.router.add_get('/api/characters', get_characters)
+
+# CORS middleware
+@web.middleware
+async def cors_middleware(request, handler):
+    if request.method == 'OPTIONS':
+        return web.Response(headers={
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+            'Access-Control-Allow-Headers': 'Content-Type'
+        })
     
-    @app.router.get('/health')
-    async def health(request):
-        return web.json_response({"status": "error", "message": str(e)})
+    response = await handler(request)
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
 
-# Основная функция для Vercel
-async def handler(request):
-    """Основной обработчик для Vercel serverless functions."""
-    try:
-        # Получаем response от aiohttp app
-        resp = await app._handle(request)
-        return resp
-    except Exception as e:
-        from aiohttp import web
-        return web.json_response({"error": str(e)}, status=500)
+app.middlewares.append(cors_middleware)
 
-# Экспортируем для Vercel
-app_handler = handler
+# Основная функция-обработчик для Vercel
+from aiohttp.web import Application
+
+def create_app() -> Application:
+    return app
+
+# Для Vercel
+handler = app
+app_callable = app
