@@ -12,15 +12,7 @@
       "dest": "/api/index.py"
     },
     {
-      "src": "/web/(.*)",
-      "dest": "/web/$1"
-    },
-    {
-      "src": "/(.*\\.(html|js|css|png|jpg|gif|ico|json))",
-      "dest": "/$1"
-    },
-    {
-      "src": "/",
+      "src": "/(.*)",
       "dest": "/index.html"
     }
   ]
