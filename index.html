@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 TMA Vercel Deploy Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .status {
+            font-size: 1.5em;
+            margin: 20px 0;
+            color: #4ade80;
+        }
+        .link {
+            display: inline-block;
+            margin: 10px;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .info {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 TMA Deploy</h1>
+        <div class="status">✅ Vercel Working!</div>
+        <p>Ваше Telegram Mini App успешно развёрнуто</p>
+        
+        <div>
+            <a href="/api/health" class="link">🔍 Health Check</a>
+            <a href="/api/characters" class="link">👥 Characters</a>
+            <a href="/web/index.html" class="link">🎮 Full TMA</a>
+        </div>
+        
+        <div class="info">
+            <h3>📋 Next Steps:</h3>
+            <ol>
+                <li>Скопируй URL этой страницы</li>
+                <li>Обнови .env: <code>TMA_DOMAIN=твой-домен.vercel.app</code></li>
+                <li>@BotFather → Menu Button</li>
+                <li>Перезапусти бота</li>
+            </ol>
+        </div>
+        
+        <div id="test-result" style="margin-top: 20px;"></div>
+    </div>
+    
+    <script>
+        // Test API on page load
+        async function testAPI() {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                document.getElementById('test-result').innerHTML = 
+                    `<div style="background: rgba(72, 222, 128, 0.2); padding: 15px; border-radius: 10px; margin-top: 20px;">
+                        <h4>🟢 API Test Success!</h4>
+                        <pre style="font-size: 12px; overflow-x: auto;">${JSON.stringify(data, null, 2)}</pre>
+                    </div>`;
+            } catch (error) {
+                document.getElementById('test-result').innerHTML = 
+                    `<div style="background: rgba(248, 113, 113, 0.2); padding: 15px; border-radius: 10px; margin-top: 20px;">
+                        <h4>🔴 API Test Failed</h4>
+                        <p>${error.message}</p>
+                    </div>`;
+            }
+        }
+        
+        // Run test after 1 second
+        setTimeout(testAPI, 1000);
+    </script>
+</body>
+</html>
