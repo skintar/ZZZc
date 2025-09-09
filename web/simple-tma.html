@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 Рейтинг персонажей</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+            color: var(--tg-theme-text-color, white);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .subtitle { opacity: 0.8; margin-bottom: 30px; }
+        
+        .screen { display: none; }
+        .screen.active { display: block; }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin: 15px 0;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+        }
+        
+        .btn:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-2px); }
+        .btn.primary { background: rgba(52, 199, 89, 0.8); }
+        .btn.secondary { background: rgba(255, 149, 0, 0.8); }
+        
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 20px;
+            align-items: center;
+            margin: 30px 0;
+        }
+        
+        .character {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .character:hover { background: rgba(255, 255, 255, 0.2); transform: scale(1.05); }
+        .character.selected { background: rgba(52, 199, 89, 0.3); }
+        
+        .character-img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 0 auto 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+        }
+        
+        .vs { font-size: 1.5em; font-weight: bold; }
+        
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 12px;
+        }
+        
+        .rank-number {
+            background: rgba(255, 255, 255, 0.2);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        
+        .progress {
+            background: rgba(255, 255, 255, 0.2);
+            height: 6px;
+            border-radius: 3px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            background: #34c759;
+            height: 100%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Главное меню -->
+        <div id="menu" class="screen active">
+            <h1>🏆 Рейтинг персонажей</h1>
+            <p class="subtitle">Создай свой топ через парные сравнения!</p>
+            
+            <button class="btn primary" onclick="startRating()">
+                ⭐ Начать оценку
+            </button>
+            <button class="btn secondary" onclick="showDemo()">
+                🎮 Демо режим
+            </button>
+            <button class="btn" onclick="showRanking()">
+                📊 Мой рейтинг
+            </button>
+        </div>
+        
+        <!-- Сравнение -->
+        <div id="comparison" class="screen">
+            <h2>Кто тебе больше нравится?</h2>
+            <div class="progress">
+                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+            </div>
+            <p id="progressText">0 / 10</p>
+            
+            <div class="comparison">
+                <div class="character" id="charA" onclick="selectCharacter('A')">
+                    <div class="character-img" id="imgA">🎭</div>
+                    <div id="nameA">Персонаж А</div>
+                </div>
+                
+                <div class="vs">VS</div>
+                
+                <div class="character" id="charB" onclick="selectCharacter('B')">
+                    <div class="character-img" id="imgB">🎪</div>
+                    <div id="nameB">Персонаж Б</div>
+                </div>
+            </div>
+            
+            <button class="btn" onclick="skipComparison()">⏭️ Пропустить</button>
+            <button class="btn secondary" onclick="goBack()">⬅️ Назад</button>
+        </div>
+        
+        <!-- Рейтинг -->
+        <div id="ranking" class="screen">
+            <h2>🏆 Твой рейтинг</h2>
+            <div id="rankingList"></div>
+            <button class="btn primary" onclick="showMenu()">🏠 Главное меню</button>
+        </div>
+    </div>
+    
+    <script>
+        // Инициализация Telegram WebApp
+        let tg = null;
+        if (window.Telegram && window.Telegram.WebApp) {
+            tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            
+            // Применяем тему Telegram
+            if (tg.themeParams.bg_color) {
+                document.body.style.background = tg.themeParams.bg_color;
+            }
+        }
+        
+        // Данные приложения
+        const characters = [
+            { name: 'Астра', emoji: '⭐' },
+            { name: 'Белль', emoji: '🔔' },
+            { name: 'Вайз', emoji: '🧙' },
+            { name: 'Грейс', emoji: '👑' },
+            { name: 'Джейн', emoji: '🎯' },
+            { name: 'Коляда', emoji: '🎄' },
+            { name: 'Корин', emoji: '💎' },
+            { name: 'Лайтер', emoji: '🔥' },
+            { name: 'Ликаон', emoji: '🐺' },
+            { name: 'Люси', emoji: '✨' }
+        ];
+        
+        let currentComparison = 0;
+        let totalComparisons = 10;
+        let userChoices = [];
+        let currentPair = null;
+        
+        // Управление экранами
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+        
+        function showMenu() {
+            showScreen('menu');
+            currentComparison = 0;
+            userChoices = [];
+        }
+        
+        // Функции меню
+        function startRating() {
+            currentComparison = 0;
+            userChoices = [];
+            nextComparison();
+            showScreen('comparison');
+        }
+        
+        function showDemo() {
+            alert('🎮 Демо режим!\\n\\nЭто упрощённая версия для демонстрации.\\n\\nВ полной версии:\\n• Умный алгоритм сравнений\\n• Сохранение прогресса\\n• Больше персонажей\\n• Статистика');
+        }
+        
+        function showRanking() {
+            if (userChoices.length === 0) {
+                // Генерируем случайный рейтинг для демо
+                const shuffled = [...characters].sort(() => Math.random() - 0.5);
+                displayRanking(shuffled);
+            } else {
+                // Показываем рейтинг на основе выборов
+                const ranking = generateRanking();
+                displayRanking(ranking);
+            }
+            showScreen('ranking');
+        }
+        
+        // Логика сравнений
+        function nextComparison() {
+            if (currentComparison >= totalComparisons) {
+                showRanking();
+                return;
+            }
+            
+            // Выбираем случайную пару персонажей
+            const charA = characters[Math.floor(Math.random() * characters.length)];
+            const charB = characters[Math.floor(Math.random() * characters.length)];
+            
+            if (charA === charB) {
+                nextComparison();
+                return;
+            }
+            
+            currentPair = { charA, charB };
+            
+            // Обновляем интерфейс
+            document.getElementById('imgA').textContent = charA.emoji;
+            document.getElementById('nameA').textContent = charA.name;
+            document.getElementById('imgB').textContent = charB.emoji;
+            document.getElementById('nameB').textContent = charB.name;
+            
+            updateProgress();
+        }
+        
+        function selectCharacter(choice) {
+            if (!currentPair) return;
+            
+            const selected = choice === 'A' ? currentPair.charA : currentPair.charB;
+            const other = choice === 'A' ? currentPair.charB : currentPair.charA;
+            
+            userChoices.push({ winner: selected, loser: other });
+            
+            // Визуальная обратная связь
+            const selectedEl = document.getElementById('char' + choice);
+            selectedEl.classList.add('selected');
+            
+            setTimeout(() => {
+                selectedEl.classList.remove('selected');
+                currentComparison++;
+                nextComparison();
+            }, 500);
+        }
+        
+        function skipComparison() {
+            currentComparison++;
+            nextComparison();
+        }
+        
+        function goBack() {
+            if (currentComparison > 0) {
+                currentComparison--;
+                userChoices.pop();
+                nextComparison();
+            } else {
+                showMenu();
+            }
+        }
+        
+        function updateProgress() {
+            const progress = (currentComparison / totalComparisons) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressText').textContent = `${currentComparison} / ${totalComparisons}`;
+        }
+        
+        // Генерация рейтинга
+        function generateRanking() {
+            const scores = {};
+            characters.forEach(char => scores[char.name] = 0);
+            
+            userChoices.forEach(choice => {
+                scores[choice.winner.name] += 2;
+                scores[choice.loser.name] += 1;
+            });
+            
+            return characters
+                .map(char => ({ ...char, score: scores[char.name] || 0 }))
+                .sort((a, b) => b.score - a.score);
+        }
+        
+        function displayRanking(ranking) {
+            const container = document.getElementById('rankingList');
+            container.innerHTML = '';
+            
+            ranking.forEach((char, index) => {
+                const item = document.createElement('div');
+                item.className = 'ranking-item';
+                item.innerHTML = `
+                    <div class="rank-number">${index + 1}</div>
+                    <div class="character-img" style="width: 40px; height: 40px; margin-right: 15px;">${char.emoji}</div>
+                    <div>
+                        <div style="font-weight: bold;">${char.name}</div>
+                        <div style="font-size: 12px; opacity: 0.7;">Очки: ${char.score || 'N/A'}</div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+        
+        // Инициализация
+        console.log('🏆 TMA Рейтинг персонажей загружен');
+        console.log('📱 Telegram WebApp:', !!tg);
+    </script>
+</body>
+</html>
