@@ -1,60 +1,59 @@
-from aiohttp import web
-from aiohttp.web import Request, Response
-import os
-import sys
+from http.server import BaseHTTPRequestHandler
 import json
-from pathlib import Path
+import os
+from urllib.parse import urlparse, parse_qs
 
-# Добавляем корневую директорию в путь
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-# Простая заглушка для API endpoints
-async def health_check(request: Request) -> Response:
-    """Health check endpoint."""
-    return web.json_response({
-        'status': 'healthy',
-        'message': 'TMA API is running',
-        'timestamp': '2025-09-09'
-    })
-
-async def get_characters(request: Request) -> Response:
-    """Get characters list."""
-    # Заглушка для персонажей
-    characters = [
-        {'index': i, 'name': f'Character {i+1}', 'image_path': f'/images/char{i+1}.png'}
-        for i in range(10)
-    ]
-    return web.json_response(characters)
-
-# Создаем приложение
-app = web.Application()
-
-# Добавляем маршруты
-app.router.add_get('/api/health', health_check)
-app.router.add_get('/api/characters', get_characters)
-
-# CORS middleware
-@web.middleware
-async def cors_middleware(request, handler):
-    if request.method == 'OPTIONS':
-        return web.Response(headers={
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-            'Access-Control-Allow-Headers': 'Content-Type'
-        })
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # Парсим URL
+        parsed_path = urlparse(self.path)
+        path = parsed_path.path
+        
+        # Устанавливаем CORS заголовки
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+        
+        # Роутинг
+        if path == '/api/health':
+            response = {
+                'status': 'healthy',
+                'message': 'TMA API is running on Vercel',
+                'timestamp': '2025-09-09',
+                'version': '1.0.0'
+            }
+            self.wfile.write(json.dumps(response).encode())
+            
+        elif path == '/api/characters':
+            # Заглушка для персонажей
+            characters = [
+                {'index': i, 'name': f'Character {i+1}', 'image_path': f'/images/char{i+1}.png'}
+                for i in range(10)
+            ]
+            self.wfile.write(json.dumps(characters).encode())
+            
+        else:
+            # Список доступных endpoints
+            response = {
+                'message': 'TMA API',
+                'endpoints': [
+                    '/api/health',
+                    '/api/characters'
+                ],
+                'status': 'running'
+            }
+            self.wfile.write(json.dumps(response).encode())
     
-    response = await handler(request)
-    response.headers['Access-Control-Allow-Origin'] = '*'
-    return response
-
-app.middlewares.append(cors_middleware)
-
-# Основная функция-обработчик для Vercel
-from aiohttp.web import Application
-
-def create_app() -> Application:
-    return app
-
-# Для Vercel
-handler = app
-app_callable = app
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+    
+    def do_POST(self):
+        # Обработка POST запросов (если понадобится)
+        self.do_GET()
