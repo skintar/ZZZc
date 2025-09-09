@@ -1,0 +1,20 @@
+# GitHub Pages configuration for TMA
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+include:
+  - CNAME
+  - README.md
+  - .htaccess
+  - _pages
+
+exclude:
+  - api/
+  - .env
+  - requirements.txt
+  - *.py
+  - *.md

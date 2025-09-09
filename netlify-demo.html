@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 TMA Рейтинг персонажей</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: var(--tg-theme-bg-color, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+            color: var(--tg-theme-text-color, white);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .status { font-size: 1.5em; margin: 20px 0; color: #4ade80; }
+        .demo-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .character {
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+            transition: transform 0.3s;
+        }
+        .character:hover { transform: scale(1.05); }
+        .character img {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            margin: 15px 0;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .btn:hover { background: rgba(255,255,255,0.3); }
+        .info {
+            background: rgba(0,0,0,0.2);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏆 Рейтинг персонажей</h1>
+        <div class="status">✅ TMA демо версия</div>
+        <p>Статическая версия для быстрого тестирования</p>
+        
+        <div class="demo-grid">
+            <div class="character" onclick="selectCharacter('Астра')">
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiM2NjdlZWEiLz4KPHN2ZyB4PSIyNSIgeT0iMjUiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyek0xMyAxN2gtMnYtNmgydjZ6bTAtOGgtMlY3aDJ2MnoiLz4KPC9zdmc+Cjwvc3ZnPgo=" alt="Астра">
+                <div>Астра</div>
+            </div>
+            <div class="character" onclick="selectCharacter('Белль')">
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNmYjcxODUiLz4KPHN2ZyB4PSIyNSIgeT0iMjUiIHdpZHRoPSIzMCIgaGVpZ2h0PSIzMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJ3aGl0ZSI+CjxwYXRoIGQ9Ik0xMiAyQzYuNDggMiAyIDYuNDggMiAxMnM0LjQ4IDEwIDEwIDEwIDEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyek0xMyAxN2gtMnYtNmgydjZ6bTAtOGgtMlY3aDJ2MnoiLz4KPC9zdmc+Cjwvc3ZnPgo=" alt="Белль">
+                <div>Белль</div>
+            </div>
+        </div>
+        
+        <button class="btn" onclick="startRanking()">🎮 Начать рейтинг</button>
+        <button class="btn" onclick="showHelp()">❓ Как это работает</button>
+        
+        <div class="info">
+            <h4>📱 Настройка бота:</h4>
+            <p><strong>Menu Button URL:</strong></p>
+            <code id="bot-url">Загружается...</code>
+        </div>
+        
+        <div id="result" style="margin-top: 20px;"></div>
+    </div>
+    
+    <script>
+        // Инициализация TMA
+        if (window.Telegram && window.Telegram.WebApp) {
+            const tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            
+            // Обновляем URL для бота
+            document.getElementById('bot-url').textContent = window.location.href;
+            
+            // Настраиваем тему
+            document.body.style.background = tg.themeParams.bg_color || '#667eea';
+        }
+        
+        let selectedCharacters = [];
+        
+        function selectCharacter(name) {
+            if (selectedCharacters.includes(name)) {
+                selectedCharacters = selectedCharacters.filter(c => c !== name);
+            } else {
+                selectedCharacters.push(name);
+            }
+            
+            document.getElementById('result').innerHTML = 
+                `<div style="background: rgba(72, 222, 128, 0.2); padding: 15px; border-radius: 10px;">
+                    <h4>Выбрано: ${selectedCharacters.length}</h4>
+                    <p>${selectedCharacters.join(', ')}</p>
+                </div>`;
+        }
+        
+        function startRanking() {
+            if (selectedCharacters.length < 2) {
+                alert('Выберите минимум 2 персонажа для рейтинга!');
+                return;
+            }
+            
+            // Демо логика рейтинга
+            const shuffled = [...selectedCharacters].sort(() => Math.random() - 0.5);
+            
+            document.getElementById('result').innerHTML = 
+                `<div style="background: rgba(168, 85, 247, 0.2); padding: 20px; border-radius: 10px;">
+                    <h4>🏆 Ваш рейтинг:</h4>
+                    ${shuffled.map((char, index) => 
+                        `<p>${index + 1}. ${char}</p>`
+                    ).join('')}
+                    <p style="font-size: 12px; opacity: 0.7;">* Демо версия - случайный порядок</p>
+                </div>`;
+        }
+        
+        function showHelp() {
+            alert(`🎯 Как работает рейтинг:
+
+1. Выбираете персонажей
+2. Сравниваете их попарно
+3. Алгоритм строит рейтинг
+4. Получаете персональный топ!
+
+Это демо версия для тестирования TMA.`);
+        }
+        
+        // Показываем статус
+        setTimeout(() => {
+            if (!document.getElementById('result').innerHTML) {
+                document.getElementById('result').innerHTML = 
+                    `<div style="background: rgba(72, 222, 128, 0.2); padding: 15px; border-radius: 10px;">
+                        <h4>✅ TMA загружено успешно!</h4>
+                        <p>Время: ${new Date().toLocaleString()}</p>
+                    </div>`;
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
