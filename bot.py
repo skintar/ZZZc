@@ -78,9 +78,9 @@ class CharacterBot:
                 from aiogram.types import MenuButtonWebApp, WebAppInfo
                 # Для локальной разработки используем http, для продакшена - https
                 if self.config.tma_domain.startswith('localhost'):
-                    web_app_url = f"http://{self.config.tma_domain}/index.html"
+                    web_app_url = f"http://{self.config.tma_domain}/web/simple-tma.html"
                 else:
-                    web_app_url = f"https://{self.config.tma_domain}/index.html"
+                    web_app_url = f"https://{self.config.tma_domain}/web/simple-tma.html"
                 await self.bot.set_chat_menu_button(
                     menu_button=MenuButtonWebApp(text="🏆 Рейтинг персонажей", web_app=WebAppInfo(url=web_app_url))
                 )

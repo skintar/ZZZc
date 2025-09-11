@@ -186,24 +186,58 @@
             }
         }
         
-        // Данные приложения
+        // Данные приложения - полный список персонажей
         const characters = [
-            { name: 'Астра', emoji: '⭐' },
-            { name: 'Белль', emoji: '🔔' },
-            { name: 'Вайз', emoji: '🧙' },
-            { name: 'Грейс', emoji: '👑' },
-            { name: 'Джейн', emoji: '🎯' },
+            { name: 'Солдат 0', emoji: '🤖' },
+            { name: 'Солдат 11', emoji: '🔫' },
+            { name: 'Энби', emoji: '⚡' },
+            { name: 'Николь', emoji: '💼' },
+            { name: 'Билли', emoji: '🎪' },
+            { name: 'Нэкомата', emoji: '🐱' },
             { name: 'Коляда', emoji: '🎄' },
-            { name: 'Корин', emoji: '💎' },
-            { name: 'Лайтер', emoji: '🔥' },
+            { name: 'Бен', emoji: '🐻' },
+            { name: 'Антон', emoji: '🔧' },
+            { name: 'Грейс', emoji: '💃' },
             { name: 'Ликаон', emoji: '🐺' },
-            { name: 'Люси', emoji: '✨' }
+            { name: 'Эллен', emoji: '🦈' },
+            { name: 'Корин', emoji: '🧧' },
+            { name: 'Рина', emoji: '⚙️' },
+            { name: 'Бёрнис', emoji: '🔥' },
+            { name: 'Цезарь', emoji: '👑' },
+            { name: 'Люси', emoji: '💎' },
+            { name: 'Пайпер', emoji: '🎵' },
+            { name: 'Лайтер', emoji: '🚗' },
+            { name: 'Пульхра', emoji: '✨' },
+            { name: 'Мияби', emoji: '🌸' },
+            { name: 'Харумаса', emoji: '🎯' },
+            { name: 'Янаги', emoji: '⚖️' },
+            { name: 'Сокаку', emoji: '❄️' },
+            { name: 'Чжу Юань', emoji: '🏰' },
+            { name: 'Цинъи', emoji: '⚔️' },
+            { name: 'Джейн', emoji: '🕷️' },
+            { name: 'Астра', emoji: '🌟' },
+            { name: 'Эвелин', emoji: '🎭' },
+            { name: 'Вивиан', emoji: '🎨' },
+            { name: 'Хуго', emoji: '🏗️' },
+            { name: 'Гашетка', emoji: '🔗' },
+            { name: 'Пань Иньху', emoji: '🐅' },
+            { name: 'Исюань', emoji: '🌙' },
+            { name: 'Фуфу', emoji: '🌺' },
+            { name: 'Юдзуха', emoji: '🍃' },
+            { name: 'Сет', emoji: '🏺' },
+            { name: 'Белль', emoji: '📚' },
+            { name: 'Вайз', emoji: '🔬' },
+            { name: 'Сид', emoji: '💤' },
+            { name: 'Элис', emoji: '🎀' },
+            { name: 'Орфей', emoji: '🎼' },
+            { name: 'Манато', emoji: '🎨' }
         ];
         
         let currentComparison = 0;
-        let totalComparisons = 10;
+        let totalComparisons = 20; // Увеличили для лучшей точности
         let userChoices = [];
         let currentPair = null;
+        let usedPairs = new Set(); // Отслеживаем использованные пары
         
         // Управление экранами
         function showScreen(screenId) {
@@ -217,12 +251,14 @@
             showScreen('menu');
             currentComparison = 0;
             userChoices = [];
+            usedPairs.clear(); // Очищаем использованные пары
         }
         
         // Функции меню
         function startRating() {
             currentComparison = 0;
             userChoices = [];
+            usedPairs.clear(); // Очищаем использованные пары
             nextComparison();
             showScreen('comparison');
         }
@@ -251,14 +287,24 @@
                 return;
             }
             
-            // Выбираем случайную пару персонажей
-            const charA = characters[Math.floor(Math.random() * characters.length)];
-            const charB = characters[Math.floor(Math.random() * characters.length)];
+            // Умный выбор пары: избегаем повторов
+            let attempts = 0;
+            let charA, charB;
             
-            if (charA === charB) {
-                nextComparison();
-                return;
-            }
+            do {
+                charA = characters[Math.floor(Math.random() * characters.length)];
+                charB = characters[Math.floor(Math.random() * characters.length)];
+                attempts++;
+                
+                if (attempts > 50) break; // Избегаем бесконечной петли
+            } while (
+                charA === charB || 
+                usedPairs.has(`${charA.name}-${charB.name}`) ||
+                usedPairs.has(`${charB.name}-${charA.name}`)
+            );
+            
+            // Запоминаем пару
+            usedPairs.add(`${charA.name}-${charB.name}`);
             
             currentPair = { charA, charB };
             
@@ -311,18 +357,54 @@
             document.getElementById('progressText').textContent = `${currentComparison} / ${totalComparisons}`;
         }
         
-        // Генерация рейтинга
+        // Генерация рейтинга с улучшенным алгоритмом
         function generateRanking() {
             const scores = {};
-            characters.forEach(char => scores[char.name] = 0);
             
+            // Инициализируем очки для всех персонажей
+            characters.forEach(char => {
+                scores[char.name] = {
+                    direct_wins: 0,
+                    total_comparisons: 0,
+                    score: 0
+                };
+            });
+            
+            // Подсчитываем победы
             userChoices.forEach(choice => {
-                scores[choice.winner.name] += 2;
-                scores[choice.loser.name] += 1;
+                scores[choice.winner.name].direct_wins += 1;
+                scores[choice.winner.name].total_comparisons += 1;
+                scores[choice.loser.name].total_comparisons += 1;
+            });
+            
+            // Вычисляем окончательные очки
+            characters.forEach(char => {
+                const data = scores[char.name];
+                // Основные очки за победы
+                data.score = data.direct_wins * 3;
+                
+                // Бонус за участие
+                data.score += data.total_comparisons * 0.5;
+                
+                // Бонус за процент побед
+                if (data.total_comparisons > 0) {
+                    const winRate = data.direct_wins / data.total_comparisons;
+                    data.score += winRate * 10;
+                }
+                
+                // Небольшой случайный фактор для неоцененных
+                if (data.total_comparisons === 0) {
+                    data.score = Math.random() * 2;
+                }
             });
             
             return characters
-                .map(char => ({ ...char, score: scores[char.name] || 0 }))
+                .map(char => ({ 
+                    ...char, 
+                    score: Math.round(scores[char.name].score * 100) / 100,
+                    wins: scores[char.name].direct_wins,
+                    comparisons: scores[char.name].total_comparisons
+                }))
                 .sort((a, b) => b.score - a.score);
         }
         
@@ -330,19 +412,38 @@
             const container = document.getElementById('rankingList');
             container.innerHTML = '';
             
-            ranking.forEach((char, index) => {
+            ranking.slice(0, 15).forEach((char, index) => { // Показываем топ-15
                 const item = document.createElement('div');
                 item.className = 'ranking-item';
+                
+                // Особые эмодзи для топ-3
+                let rankEmoji = '';
+                if (index === 0) rankEmoji = '🥇';
+                else if (index === 1) rankEmoji = '🥈';
+                else if (index === 2) rankEmoji = '🥉';
+                else if (index < 10) rankEmoji = '⭐';
+                else rankEmoji = '🔸';
+                
                 item.innerHTML = `
-                    <div class="rank-number">${index + 1}</div>
+                    <div class="rank-number">${rankEmoji}</div>
                     <div class="character-img" style="width: 40px; height: 40px; margin-right: 15px;">${char.emoji}</div>
-                    <div>
-                        <div style="font-weight: bold;">${char.name}</div>
-                        <div style="font-size: 12px; opacity: 0.7;">Очки: ${char.score || 'N/A'}</div>
+                    <div style="flex-grow: 1;">
+                        <div style="font-weight: bold; font-size: 16px;">${index + 1}. ${char.name}</div>
+                        <div style="font-size: 12px; opacity: 0.7;">
+                            🏆 ${char.wins || 0} побед • 📊 ${char.score || 0} очков
+                        </div>
                     </div>
                 `;
                 container.appendChild(item);
             });
+            
+            // Добавляем инфо о полном рейтинге
+            if (ranking.length > 15) {
+                const moreInfo = document.createElement('div');
+                moreInfo.style.cssText = 'text-align: center; padding: 20px; opacity: 0.7; font-size: 14px;';
+                moreInfo.innerHTML = `И ещё ${ranking.length - 15} персонажей...<br>🎮 Оцени больше для точного рейтинга!`;
+                container.appendChild(moreInfo);
+            }
         }
         
         // Инициализация

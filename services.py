@@ -614,68 +614,6 @@ class SessionService:
         
         return removed_count
 
-
-class RankingService:
-    """Сервис для работы с рейтингами."""
-    
-    def __init__(self, character_service: CharacterService):
-        self.character_service = character_service
-    
-    def generate_ranking(self, session: UserSession) -> List[RankingEntry]:
-        """Генерирует рейтинг на основе количества побед с учетом транзитивности."""
-        # Подсчитываем победы для каждого персонажа из транзитивных связей
-        wins_count = {}
-        for i in range(len(self.character_service.characters)):
-            # Считаем количество персонажей, которых побеждает данный персонаж
-            # через прямые и транзитивные связи
-            defeated_count = 0
-            for j in range(len(self.character_service.characters)):
-                if i != j and (i, j) in session.wins:
-                    defeated_count += 1
-            wins_count[i] = defeated_count
-        
-        # Создаем список с индексами и количеством побед
-        win_data = []
-        for i in range(len(self.character_service.characters)):
-            total_wins = wins_count.get(i, 0)
-            win_data.append((total_wins, i))
-        
-        # Сортируем по убыванию количества побед
-        win_data.sort(reverse=True, key=lambda x: x[0])
-        
-        ranking = []
-        for place, (total_wins, character_index) in enumerate(win_data, 1):
-            character = self.character_service.get_character_by_index(character_index)
-            if character:
-                direct_wins = sum(1 for (a, b), winner in session.results.items() if winner == character_index)
-                
-                # Создаем простой рейтинг на основе побед (без базового смещения)
-                simple_rating = total_wins
-                
-                ranking.append(RankingEntry(
-                    place=place,
-                    character_name=character.name,
-                    rating=simple_rating,
-                    wins=direct_wins,
-                    comparisons=len(session.results) // len(self.character_service.characters)  # Примерное количество
-                ))
-        
-        return ranking
-    
-    def format_ranking_text(self, ranking: List[RankingEntry]) -> str:
-        """Форматирует рейтинг: только место и имя (без очков и побед)."""
-        lines = ["🏆 **Твой персональный рейтинг персонажей:**\n"]
-        for entry in ranking:
-            if entry.place <= 3:
-                emoji = ["🥇", "🥈", "🥉"][entry.place - 1]
-            elif entry.place <= 10:
-                emoji = "⭐"
-            else:
-                emoji = "🔸"
-            lines.append(f"{emoji} **{entry.place}.** {entry.character_name}")
-        return "\n".join(lines) + "\n"
-    
-    
     def create_session(self, user_id: int, characters_count: int = None, max_comparisons: int = None) -> Optional[UserSession]:
         """Создает новую сессию для пользователя с валидацией."""
         if not isinstance(user_id, int) or user_id <= 0:
@@ -739,4 +677,131 @@ class RankingService:
         except Exception as e:
             logger.error(f"Ошибка создания сессии новых персонажей: {e}")
             return None
+
+    def create_session(self, user_id: int, characters_count: int = None, max_comparisons: int = None) -> Optional[UserSession]:
+        """Создает новую сессию для пользователя с валидацией."""
+        if not isinstance(user_id, int) or user_id <= 0:
+            logger.error(f"Некорректный user_id: {user_id}")
+            return None
+            
+        if characters_count is None:
+            characters_count = self.character_service.get_characters_count() if self.character_service else 1
+            
+        if not isinstance(characters_count, int) or characters_count < 2:
+            logger.error(f"Некорректное количество персонажей: {characters_count}")
+            return None
+            
+        if max_comparisons is not None and (not isinstance(max_comparisons, int) or max_comparisons < 1):
+            logger.error(f"Некорректное максимальное количество сравнений: {max_comparisons}")
+            return None
+            
+        try:
+            # Удаляем старую сессию, если есть
+            if user_id in self._sessions:
+                del self._sessions[user_id]
+                
+            session = UserSession(
+                characters_count=characters_count,
+                max_comparisons=max_comparisons,
+                new_characters_only=False
+            )
+            self._sessions[user_id] = session
+            self._save_sessions()
+            
+            logger.info(f"Создана новая сессия для пользователя {user_id} (персонажей: {characters_count}, макс. сравнений: {max_comparisons})")
+            return session
+        except Exception as e:
+            logger.error(f"Ошибка создания сессии: {e}")
+            return None
+    
+    def create_new_characters_session(self, user_id: int) -> Optional[UserSession]:
+        """Создает сессию для оценки новых персонажей."""
+        try:
+            if not self._new_characters:
+                return None
+            
+            # Получаем индексы новых персонажей
+            new_character_indices = []
+            for char_name in self._new_characters:
+                if self.character_service._name_to_index and char_name in self.character_service._name_to_index:
+                    new_character_indices.append(self.character_service._name_to_index[char_name])
+            
+            if not new_character_indices:
+                return None
+            
+            session = UserSession(
+                characters_count=self.character_service.get_characters_count(),
+                max_comparisons=None,
+                new_characters_only=True,
+                new_character_indices=new_character_indices
+            )
+            self._sessions[user_id] = session
+            self._save_sessions()  # Сохраняем новую сессию
+            return session
+        except Exception as e:
+            logger.error(f"Ошибка создания сессии новых персонажей: {e}")
+            return None
+
+
+class RankingService:
+    """Сервис для работы с рейтингами."""
+    
+    def __init__(self, character_service: CharacterService):
+        self.character_service = character_service
+    
+    def generate_ranking(self, session: UserSession) -> List[RankingEntry]:
+        """Генерирует рейтинг на основе количества побед с учетом транзитивности."""
+        # Подсчитываем победы для каждого персонажа из транзитивных связей
+        wins_count = {}
+        for i in range(len(self.character_service.characters)):
+            # Считаем количество персонажей, которых побеждает данный персонаж
+            # через прямые и транзитивные связи
+            defeated_count = 0
+            for j in range(len(self.character_service.characters)):
+                if i != j and (i, j) in session.wins:
+                    defeated_count += 1
+            wins_count[i] = defeated_count
+        
+        # Создаем список с индексами и количеством побед
+        win_data = []
+        for i in range(len(self.character_service.characters)):
+            total_wins = wins_count.get(i, 0)
+            win_data.append((total_wins, i))
+        
+        # Сортируем по убыванию количества побед
+        win_data.sort(reverse=True, key=lambda x: x[0])
+        
+        ranking = []
+        for place, (total_wins, character_index) in enumerate(win_data, 1):
+            character = self.character_service.get_character_by_index(character_index)
+            if character:
+                direct_wins = sum(1 for (a, b), winner in session.results.items() if winner == character_index)
+                
+                # Создаем простой рейтинг на основе побед (без базового смещения)
+                simple_rating = total_wins
+                
+                ranking.append(RankingEntry(
+                    place=place,
+                    character_name=character.name,
+                    rating=simple_rating,
+                    wins=direct_wins,
+                    comparisons=len(session.results) // len(self.character_service.characters)  # Примерное количество
+                ))
+        
+        return ranking
+    
+    def format_ranking_text(self, ranking: List[RankingEntry]) -> str:
+        """Форматирует рейтинг: только место и имя (без очков и побед)."""
+        lines = ["🏆 **Твой персональный рейтинг персонажей:**\n"]
+        for entry in ranking:
+            if entry.place <= 3:
+                emoji = ["🥇", "🥈", "🥉"][entry.place - 1]
+            elif entry.place <= 10:
+                emoji = "⭐"
+            else:
+                emoji = "🔸"
+            lines.append(f"{emoji} **{entry.place}.** {entry.character_name}")
+        return "\n".join(lines) + "\n"
+    
+
     
