@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 Рейтинг персонажей</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--tg-theme-bg-color, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+            color: var(--tg-theme-text-color, white);
+            min-height: 100vh;
+            padding: 15px;
+        }
+        
+        .container {
+            max-width: 420px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 { font-size: 2.2em; margin-bottom: 8px; }
+        h2 { font-size: 1.8em; margin-bottom: 15px; }
+        .subtitle { opacity: 0.9; margin-bottom: 25px; font-size: 16px; }
+        
+        .screen { display: none; }
+        .screen.active { display: block; }
+        
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 16px;
+            margin: 12px 0;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            border: 2px solid transparent;
+        }
+        
+        .btn:hover { 
+            background: rgba(255, 255, 255, 0.3); 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn.primary { 
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .btn.secondary { 
+            background: linear-gradient(45deg, #FF9800, #F57C00);
+        }
+        
+        .btn.outline {
+            background: transparent;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+        
+        .mode-grid {
+            display: grid;
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .mode-card {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 18px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            text-align: left;
+        }
+        
+        .mode-card:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-3px);
+        }
+        
+        .mode-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .mode-emoji {
+            font-size: 2em;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+        }
+        
+        .mode-info h3 {
+            font-size: 1.3em;
+            margin-bottom: 4px;
+        }
+        
+        .mode-stats {
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+        
+        .mode-description {
+            font-size: 0.95em;
+            opacity: 0.9;
+            line-height: 1.4;
+        }
+        
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 15px;
+            align-items: center;
+            margin: 25px 0;
+        }
+        
+        .character {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 20px;
+            border-radius: 18px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 3px solid transparent;
+        }
+        
+        .character:hover { 
+            background: rgba(255, 255, 255, 0.25); 
+            transform: scale(1.05);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .character.selected { 
+            background: rgba(76, 175, 80, 0.4); 
+            border-color: #4CAF50;
+        }
+        
+        .character-img {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            margin: 0 auto 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5em;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .character-name {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+        
+        .vs { 
+            font-size: 1.8em; 
+            font-weight: bold; 
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .progress {
+            background: rgba(255, 255, 255, 0.2);
+            height: 8px;
+            border-radius: 4px;
+            margin: 20px 0;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            background: linear-gradient(90deg, #4CAF50, #81C784);
+            height: 100%;
+            transition: width 0.4s ease;
+            border-radius: 4px;
+        }
+        
+        .progress-text {
+            margin: 10px 0;
+            font-weight: 600;
+            opacity: 0.9;
+        }
+        
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 16px;
+            margin: 12px 0;
+            border-radius: 15px;
+            text-align: left;
+        }
+        
+        .rank-number {
+            background: rgba(255, 255, 255, 0.25);
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .rank-gold { background: linear-gradient(45deg, #FFD700, #FFA000); }
+        .rank-silver { background: linear-gradient(45deg, #C0C0C0, #9E9E9E); }
+        .rank-bronze { background: linear-gradient(45deg, #CD7F32, #A0522D); }
+        
+        .motivational {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            margin: 20px 0;
+            font-style: italic;
+            opacity: 0.9;
+        }
+        
+        .stats-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-top: 5px;
+        }
+        
+        .back-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: white;
+            padding: 12px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2em;
+            z-index: 1000;
+        }
+        
+        @media (max-width: 400px) {
+            .container { padding: 20px; margin: 10px; }
+            .comparison { gap: 10px; }
+            .character-img { width: 70px; height: 70px; font-size: 2em; }
+            h1 { font-size: 1.8em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Главное меню -->
+        <div id="menu" class="screen active">
+            <h1>🏆 Рейтинг персонажей</h1>
+            <p class="subtitle">Создай свой топ через парные сравнения!</p>
+            
+            <button class="btn primary" onclick="showModeSelection()">
+                🏆 Создать рейтинг
+            </button>
+            <button class="btn secondary" onclick="showMyRanking()">
+                📊 Мой рейтинг
+            </button>
+            <button class="btn outline" onclick="showDemo()">
+                🎆 О приложении
+            </button>
+        </div>
+        
+        <!-- Выбор режима -->
+        <div id="modeSelection" class="screen">
+            <button class="back-btn" onclick="showMenu()">←</button>
+            <h2>⚡ Выбери режим оценки</h2>
+            <p class="subtitle">Каждый режим дает точный результат для первых мест</p>
+            
+            <div class="mode-grid">
+                <div class="mode-card" onclick="startRating('quick')">
+                    <div class="mode-header">
+                        <div class="mode-emoji">⚡</div>
+                        <div class="mode-info">
+                            <h3>Быстрый</h3>
+                            <div class="mode-stats">3-5 мин • 85-90% • 15 сравнений</div>
+                        </div>
+                    </div>
+                    <div class="mode-description">
+                        Быстрая оценка с основными сравнениями.
+                        Отлично для получения топ-3!
+                    </div>
+                </div>
+                
+                <div class="mode-card" onclick="startRating('medium')">
+                    <div class="mode-header">
+                        <div class="mode-emoji">🎯</div>
+                        <div class="mode-info">
+                            <h3>Средний</h3>
+                            <div class="mode-stats">6-9 мин • 90-95% • 30 сравнений</div>
+                        </div>
+                    </div>
+                    <div class="mode-description">
+                        Сбалансированная оценка с хорошей точностью.
+                        Рекомендуемый режим!
+                    </div>
+                </div>
+                
+                <div class="mode-card" onclick="startRating('precise')">
+                    <div class="mode-header">
+                        <div class="mode-emoji">🏆</div>
+                        <div class="mode-info">
+                            <h3>Точный</h3>
+                            <div class="mode-stats">12-18 мин • 95-98% • 50 сравнений</div>
+                        </div>
+                    </div>
+                    <div class="mode-description">
+                        Максимальная точность для идеального рейтинга.
+                        Для перфекционистов!
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Сравнение -->
+        <div id="comparison" class="screen">
+            <h2>Кто тебе больше нравится?</h2>
+            <div class="progress">
+                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+            </div>
+            <p id="progressText">0 / 10</p>
+            
+            <div class="comparison">
+                <div class="character" id="charA" onclick="selectCharacter('A')">
+                    <div class="character-img" id="imgA">🎭</div>
+                    <div id="nameA">Персонаж А</div>
+                </div>
+                
+                <div class="vs">VS</div>
+                
+                <div class="character" id="charB" onclick="selectCharacter('B')">
+                    <div class="character-img" id="imgB">🎪</div>
+                    <div id="nameB">Персонаж Б</div>
+                </div>
+            </div>
+            
+            <button class="btn" onclick="skipComparison()">⏭️ Пропустить</button>
+            <button class="btn secondary" onclick="goBack()">⬅️ Назад</button>
+        </div>
+        
+        <!-- Рейтинг -->
+        <div id="ranking" class="screen">
+            <h2>🏆 Твой рейтинг</h2>
+            <div id="rankingList"></div>
+            <button class="btn primary" onclick="showMenu()">🏠 Главное меню</button>
+        </div>
+    </div>
+    
+    <script>
+        // Инициализация Telegram WebApp
+        let tg = null;
+        if (window.Telegram && window.Telegram.WebApp) {
+            tg = window.Telegram.WebApp;
+            tg.ready();
+            tg.expand();
+            
+            // Применяем тему Telegram
+            if (tg.themeParams.bg_color) {
+                document.body.style.background = tg.themeParams.bg_color;
+            }
+        }
+        
+        // Данные приложения - полный список персонажей (соответствует config.py)
+        const characters = [
+            { name: 'Солдат 0', emoji: '🤖' },
+            { name: 'Солдат 11', emoji: '🔫' },
+            { name: 'Энби', emoji: '⚡' },
+            { name: 'Николь', emoji: '💼' },
+            { name: 'Билли', emoji: '🎪' },
+            { name: 'Нэкомата', emoji: '🐱' },
+            { name: 'Коляда', emoji: '🎄' },
+            { name: 'Бен', emoji: '🐻' },
+            { name: 'Антон', emoji: '🔧' },
+            { name: 'Грейс', emoji: '💃' },
+            { name: 'Ликаон', emoji: '🐺' },
+            { name: 'Эллен', emoji: '🦈' },
+            { name: 'Корин', emoji: '🧸' },
+            { name: 'Рина', emoji: '⚙️' },
+            { name: 'Бёрнис', emoji: '🔥' },
+            { name: 'Цезарь', emoji: '👑' },
+            { name: 'Люси', emoji: '💎' },
+            { name: 'Пайпер', emoji: '🎵' },
+            { name: 'Лайтер', emoji: '🚗' },
+            { name: 'Пульхра', emoji: '✨' },
+            { name: 'Мияби', emoji: '🌸' },
+            { name: 'Харумаса', emoji: '🎯' },
+            { name: 'Янаги', emoji: '⚖️' },
+            { name: 'Сокаку', emoji: '❄️' },
+            { name: 'Чжу Юань', emoji: '🏛️' },
+            { name: 'Цинъи', emoji: '⚔️' },
+            { name: 'Джейн', emoji: '🕷️' },
+            { name: 'Астра', emoji: '🌟' },
+            { name: 'Эвелин', emoji: '🎭' },
+            { name: 'Вивиан', emoji: '🎨' },
+            { name: 'Хуго', emoji: '🏗️' },
+            { name: 'Гашетка', emoji: '🔗' },
+            { name: 'Пань Иньху', emoji: '🐅' },
+            { name: 'Исюань', emoji: '🌙' },
+            { name: 'Фуфу', emoji: '🌺' },
+            { name: 'Юдзуха', emoji: '🍃' },
+            { name: 'Сет', emoji: '🏺' },
+            { name: 'Белль', emoji: '📚' },
+            { name: 'Вайз', emoji: '🔬' },
+            { name: 'Сид', emoji: '💤' },
+            { name: 'Элис', emoji: '🎀' },
+            { name: 'Орфей', emoji: '🎼' },
+            { name: 'Манато', emoji: '🎨' }
+        ];
+        
+        // Режимы оценки (соответствует config.py)
+        const evaluationModes = {
+            'quick': {
+                name: '⚡ Быстрый (до 5 мин)',
+                description: 'Быстрая оценка с основными сравнениями',
+                max_comparisons: 15,
+                estimated_time: '3-5 минут',
+                accuracy: '85-90%',
+                emoji: '⚡'
+            },
+            'medium': {
+                name: '🎯 Средний (5-10 мин)',
+                description: 'Сбалансированная оценка с хорошей точностью',
+                max_comparisons: 30,
+                estimated_time: '6-9 минут',
+                accuracy: '90-95%',
+                emoji: '🎯'
+            },
+            'precise': {
+                name: '🏆 Точный (10-20 мин)',
+                description: 'Максимальная точность для идеального рейтинга',
+                max_comparisons: 50,
+                estimated_time: '12-18 минут',
+                accuracy: '95-98%',
+                emoji: '🏆'
+            }
+        };
+        
+        // Мотивирующие фразы (соответствует config.py)
+        const motivationalPhrases = [
+            "✨ Ты отлично справляешься!",
+            "🎯 Каждый выбор приближает к идеальному рейтингу!",
+            "🌟 Твои предпочтения уникальны и интересны!",
+            "💫 Продолжай в том же духе!",
+            "🎪 Ты создаешь что-то особенное!",
+            "🔥 Твоя интуиция работает отлично!",
+            "🌸 Каждое сравнение делает рейтинг лучше!",
+            "⭐ Ты почти у цели!",
+            "🎭 Твои вкусы формируют уникальный топ!",
+            "🌈 Каждый выбор важен и ценен!"
+        ];
+        
+        // Состояние сессии (аналог SimpleTransitiveSession)
+        let currentSession = null;
+        let currentMode = null;
+        
+        // ========================
+        // 🎆 КЛАСС 🎆 TransitiveSession - Полная имплементация транзитивного алгоритма
+        // ========================
+        class TransitiveSession {
+            constructor(charactersCount, maxComparisons = null) {
+                this.charactersCount = charactersCount;
+                this.maxComparisons = maxComparisons;
+                
+                // Множество всех известных отношений (включая транзитивные)
+                this.wins = new Set(); // (winner, loser)
+                
+                // Только прямые сравнения пользователя: key=(min(a,b), max(a,b)), value=winner
+                this.results = new Map();
+                
+                // Адж. списки по текущему замыканию
+                this.adjFwd = new Map(); // winner -> losers
+                this.adjRev = new Map(); // loser -> winners
+                
+                // Инкрементальные счётчики
+                this.winCounts = new Map();
+                this.compCounts = new Map();
+                
+                // Инициализация счётчиков
+                for (let i = 0; i < charactersCount; i++) {
+                    this.winCounts.set(i, 0);
+                    this.compCounts.set(i, 0);
+                    this.adjFwd.set(i, new Set());
+                    this.adjRev.set(i, new Set());
+                }
+                
+                this.comparisonsMade = 0;
+                this.choiceHistory = [];
+                this.currentPair = null;
+                
+                // Все ещё неизвестные пары (min, max)
+                this.unknownPairs = new Set();
+                for (let a = 0; a < charactersCount; a++) {
+                    for (let b = a + 1; b < charactersCount; b++) {
+                        this.unknownPairs.add(`${a},${b}`);
+                    }
+                }
+                
+                // Обучение на истории
+                this.learnedPreferences = new Map();
+            }
+            
+            get isCompleted() {
+                if (this.maxComparisons !== null && this.comparisonsMade >= this.maxComparisons) {
+                    return true;
+                }
+                return this.unknownPairs.size === 0;
+            }
+            
+            get totalPairs() {
+                return this.maxComparisons || (this.charactersCount * (this.charactersCount - 1)) / 2;
+            }
+            
+            getCurrentPair() {
+                if (this.isCompleted) {
+                    this.currentPair = null;
+                    return null;
+                }
+                if (this.currentPair === null) {
+                    this.currentPair = this.selectNextPair();
+                }
+                return this.currentPair;
+            }
+            
+            recordChoice(pair, winner) {
+                if (!pair) return;
+                
+                const [a, b] = pair;
+                if (![a, b].includes(winner)) {
+                    throw new Error('winner must be one of pair');
+                }
+                
+                const mn = Math.min(a, b);
+                const mx = Math.max(a, b);
+                const pairKey = `${mn},${mx}`;
+                
+                // Если уже есть прямой результат по этой паре — игнор
+                if (this.results.has(pairKey)) {
+                    this.currentPair = null;
+                    return;
+                }
+                
+                const loser = (winner === a) ? b : a;
+                
+                // Если отношение уже известно транзитивно – тоже игнор
+                const winKey = `${winner},${loser}`;
+                if (this.wins.has(winKey)) {
+                    this.results.set(pairKey, winner);
+                    this.comparisonsMade++;
+                    this.compCounts.set(a, this.compCounts.get(a) + 1);
+                    this.compCounts.set(b, this.compCounts.get(b) + 1);
+                    this.choiceHistory.push([pairKey, winner]);
+                    this.learnFromChoice([mn, mx], winner);
+                    this.unknownPairs.delete(pairKey);
+                    this.currentPair = null;
+                    return;
+                }
+                
+                // Проверяем, не приведёт ли к циклу
+                if (this.isReachable(loser, winner)) {
+                    // Конфликтная информация: создаст цикл
+                    this.results.set(pairKey, winner);
+                    this.comparisonsMade++;
+                    this.compCounts.set(a, this.compCounts.get(a) + 1);
+                    this.compCounts.set(b, this.compCounts.get(b) + 1);
+                    this.choiceHistory.push([pairKey, winner]);
+                    this.learnFromChoice([mn, mx], winner);
+                    this.unknownPairs.delete(pairKey);
+                    this.currentPair = null;
+                    return;
+                }
+                
+                // Записываем прямое сравнение
+                this.results.set(pairKey, winner);
+                this.comparisonsMade++;
+                this.compCounts.set(a, this.compCounts.get(a) + 1);
+                this.compCounts.set(b, this.compCounts.get(b) + 1);
+                this.choiceHistory.push([pairKey, winner]);
+                this.learnFromChoice([mn, mx], winner);
+                
+                // Добавляем новое отношение и все транзитивные следствия
+                this.addRelationWithClosure(winner, loser);
+                
+                this.currentPair = null;
+            }
+            
+            addRelationWithClosure(u, v) {
+                // Найдём всех предков u (включая u) и всех потомков v (включая v)
+                const ancestors = this.collectAncestorsInclusive(u);
+                const descendants = this.collectDescendantsInclusive(v);
+                
+                // Для каждой пары (a, b) добавим ребро, если его ещё нет
+                for (const a of ancestors) {
+                    for (const b of descendants) {
+                        if (a === b) continue;
+                        
+                        const winKey = `${a},${b}`;
+                        if (this.wins.has(winKey)) continue;
+                        
+                        // Добавляем новое ребро в замыкание
+                        this.wins.add(winKey);
+                        this.adjFwd.get(a).add(b);
+                        this.adjRev.get(b).add(a);
+                        
+                        // Инкремент побед
+                        this.winCounts.set(a, this.winCounts.get(a) + 1);
+                        
+                        // Пара становится известной — убрать из unknown
+                        const mn = Math.min(a, b);
+                        const mx = Math.max(a, b);
+                        this.unknownPairs.delete(`${mn},${mx}`);
+                    }
+                }
+            }
+            
+            collectAncestorsInclusive(x) {
+                const res = new Set([x]);
+                const queue = [x];
+                
+                while (queue.length > 0) {
+                    const cur = queue.shift();
+                    const parents = this.adjRev.get(cur) || new Set();
+                    for (const p of parents) {
+                        if (!res.has(p)) {
+                            res.add(p);
+                            queue.push(p);
+                        }
+                    }
+                }
+                return res;
+            }
+            
+            collectDescendantsInclusive(x) {
+                const res = new Set([x]);
+                const queue = [x];
+                
+                while (queue.length > 0) {
+                    const cur = queue.shift();
+                    const children = this.adjFwd.get(cur) || new Set();
+                    for (const ch of children) {
+                        if (!res.has(ch)) {
+                            res.add(ch);
+                            queue.push(ch);
+                        }
+                    }
+                }
+                return res;
+            }
+            
+            isReachable(src, dst) {
+                if (src === dst) return true;
+                return this.wins.has(`${src},${dst}`);
+            }
+            
+            learnFromChoice(pair, winner) {
+                if (!pair || pair.length !== 2) return;
+                
+                const [a, b] = pair;
+                if (!(0 <= a && a < this.charactersCount && 0 <= b && b < this.charactersCount)) return;
+                if (![a, b].includes(winner)) return;
+                
+                const loser = (winner === a) ? b : a;
+                const keyAB = `${a},${b}`;
+                const keyBA = `${b},${a}`;
+                
+                // Инициализация нейтральными значениями
+                if (!this.learnedPreferences.has(keyAB)) {
+                    this.learnedPreferences.set(keyAB, 0.5);
+                }
+                if (!this.learnedPreferences.has(keyBA)) {
+                    this.learnedPreferences.set(keyBA, 0.5);
+                }
+                
+                // Обновляем предпочтения
+                const learningRate = 0.1;
+                if (winner === a) {
+                    this.learnedPreferences.set(keyAB, Math.min(1.0, this.learnedPreferences.get(keyAB) + learningRate));
+                    this.learnedPreferences.set(keyBA, Math.max(0.0, this.learnedPreferences.get(keyBA) - learningRate));
+                } else {
+                    this.learnedPreferences.set(keyBA, Math.min(1.0, this.learnedPreferences.get(keyBA) + learningRate));
+                    this.learnedPreferences.set(keyAB, Math.max(0.0, this.learnedPreferences.get(keyAB) - learningRate));
+                }
+            }
+            
+            getLearnedPreference(a, b) {
+                if (!(0 <= a && a < this.charactersCount && 0 <= b && b < this.charactersCount)) return 0.5;
+                if (a === b) return 0.5;
+                return this.learnedPreferences.get(`${a},${b}`) || 0.5;
+            }
+            
+            selectNextPair() {
+                if (this.unknownPairs.size === 0) return null;
+                
+                // Ранние шаги — случайная пара
+                if (this.comparisonsMade < 10) {
+                    const pairs = Array.from(this.unknownPairs);
+                    const randomPair = pairs[Math.floor(Math.random() * pairs.length)];
+                    const [a, b] = randomPair.split(',').map(Number);
+                    return [a, b];
+                }
+                
+                // Эвристика на подвыборке кандидатов
+                const candidates = this.sampleUnknown(200);
+                
+                if (candidates.length === 0) {
+                    const pairs = Array.from(this.unknownPairs);
+                    const randomPair = pairs[Math.floor(Math.random() * pairs.length)];
+                    const [a, b] = randomPair.split(',').map(Number);
+                    return [a, b];
+                }
+                
+                const scored = [];
+                for (const candidatePair of candidates) {
+                    const [a, b] = candidatePair.split(',').map(Number);
+                    const winDiff = Math.abs(this.winCounts.get(a) - this.winCounts.get(b));
+                    const compSum = this.compCounts.get(a) + this.compCounts.get(b);
+                    const learnedPref = this.getLearnedPreference(a, b);
+                    const uncertainty = Math.abs(learnedPref - 0.5);
+                    
+                    // Чем меньше score — тем лучше
+                    let score;
+                    if (compSum === 0) {
+                        score = 1000 + winDiff - uncertainty * 100;
+                    } else if (compSum < 3) {
+                        score = 500 + winDiff - uncertainty * 50;
+                    } else {
+                        score = winDiff - uncertainty * 200 + Math.max(0, 5 - Math.abs(compSum - 6));
+                    }
+                    scored.push([score, a, b]);
+                }
+                
+                scored.sort((x, y) => x[0] - y[0]);
+                const topCount = Math.max(1, Math.floor(scored.length / 3));
+                const randomChoice = scored[Math.floor(Math.random() * topCount)];
+                return [randomChoice[1], randomChoice[2]];
+            }
+            
+            sampleUnknown(k) {
+                if (this.unknownPairs.size === 0) return [];
+                if (this.unknownPairs.size <= k) return Array.from(this.unknownPairs);
+                
+                const pairsArray = Array.from(this.unknownPairs);
+                const result = [];
+                for (let i = 0; i < k; i++) {
+                    result.push(pairsArray[Math.floor(Math.random() * pairsArray.length)]);
+                }
+                return result;
+            }
+            
+            calculateScores() {
+                const scores = [];
+                for (let idx = 0; idx < this.charactersCount; idx++) {
+                    scores.push([this.winCounts.get(idx), idx]);
+                }
+                return scores.sort((a, b) => b[0] - a[0]);
+            }
+            
+            getStatistics() {
+                const denom = this.totalPairs || 1;
+                return {
+                    comparisonsMade: this.comparisonsMade,
+                    maxComparisons: this.maxComparisons,
+                    totalRelations: this.wins.size,
+                    completionPercentage: Math.min(100.0, (this.comparisonsMade / denom) * 100.0)
+                };
+            }
+        }
+        
+        // ========================
+        // 🎆 ОСНОВНЫЕ ФУНКЦИИ 🎆
+        // ========================
+        
+        // Управление экранами
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(screen => {
+                screen.classList.remove('active');
+            });
+            document.getElementById(screenId).classList.add('active');
+        }
+        
+        function showMenu() {
+            showScreen('menu');
+            currentSession = null;
+            currentMode = null;
+        }
+        
+        function showModeSelection() {
+            showScreen('modeSelection');
+        }
+        
+        // Начало оценки с выбранным режимом
+        function startRating(mode) {
+            currentMode = evaluationModes[mode];
+            currentSession = new TransitiveSession(characters.length, currentMode.max_comparisons);
+            
+            console.log(`🎯 Начало оценки в режиме: ${currentMode.name}`);
+            console.log(`🔢 Макс. сравнений: ${currentMode.max_comparisons}`);
+            
+            nextComparison();
+            showScreen('comparison');
+        }
+        
+        function showMyRanking() {
+            if (!currentSession || currentSession.comparisonsMade === 0) {
+                // Генерируем случайный рейтинг для демо
+                const shuffled = [...characters].sort(() => Math.random() - 0.5);
+                displayRanking(shuffled.map((char, index) => ({
+                    ...char,
+                    score: Math.round((characters.length - index) * 10 + Math.random() * 10),
+                    wins: Math.floor(Math.random() * 20),
+                    comparisons: Math.floor(Math.random() * 30)
+                })));
+            } else {
+                // Показываем рейтинг на основе текущей сессии
+                const ranking = generateRanking();
+                displayRanking(ranking);
+            }
+            showScreen('ranking');
+        }
+        
+        function showDemo() {
+            alert('🎮 О приложении!\n\n🏆 Создай свой рейтинг персонажей!\n\n✨ Особенности:\n• 3 режима оценки\n• Умные алгоритмы сравнений\n• Транзитивное ранжирование\n• Мотивирующие фразы\n\n🚀 Начни прямо сейчас!');
+        }
+        
+        // ========================
+        // 🎆 ЛОГИКА СРАВНЕНИЙ 🎆
+        // ========================
+        
+        function nextComparison() {
+            if (!currentSession || currentSession.isCompleted) {
+                showRanking();
+                return;
+            }
+            
+            const pair = currentSession.getCurrentPair();
+            if (!pair) {
+                showRanking();
+                return;
+            }
+            
+            const [charAIndex, charBIndex] = pair;
+            const charA = characters[charAIndex];
+            const charB = characters[charBIndex];
+            
+            // Обновляем интерфейс
+            document.getElementById('imgA').textContent = charA.emoji;
+            document.getElementById('nameA').textContent = charA.name;
+            document.getElementById('imgB').textContent = charB.emoji;
+            document.getElementById('nameB').textContent = charB.name;
+            
+            updateProgress();
+            
+            // Мотивирующая фраза каждые 5 сравнений
+            if (currentSession.comparisonsMade > 0 && currentSession.comparisonsMade % 5 === 0) {
+                showMotivationalPhrase();
+            }
+        }
+        
+        function selectCharacter(choice) {
+            if (!currentSession) return;
+            
+            const pair = currentSession.getCurrentPair();
+            if (!pair) return;
+            
+            const [charAIndex, charBIndex] = pair;
+            const selected = choice === 'A' ? charAIndex : charBIndex;
+            
+            try {
+                currentSession.recordChoice(pair, selected);
+                
+                // Визуальная обратная связь
+                const selectedEl = document.getElementById('char' + choice);
+                selectedEl.classList.add('selected');
+                
+                setTimeout(() => {
+                    selectedEl.classList.remove('selected');
+                    nextComparison();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Ошибка при записи выбора:', error);
+                nextComparison(); // Продолжаем несмотря на ошибку
+            }
+        }
+        
+        function skipComparison() {
+            if (!currentSession) return;
+            nextComparison();
+        }
+        
+        function goBack() {
+            // Упрощённая версия - просто возвращаем в меню
+            showMenu();
+        }
+        
+        function updateProgress() {
+            if (!currentSession) return;
+            
+            const progress = (currentSession.comparisonsMade / currentSession.totalPairs) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+            document.getElementById('progressText').textContent = 
+                `${currentSession.comparisonsMade} / ${currentSession.maxComparisons || '?'}`;
+        }
+        
+        function showMotivationalPhrase() {
+            const phrase = motivationalPhrases[Math.floor(Math.random() * motivationalPhrases.length)];
+            
+            // Создаём всплывающее сообщение
+            const motivationalEl = document.createElement('div');
+            motivationalEl.className = 'motivational';
+            motivationalEl.textContent = phrase;
+            motivationalEl.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(76, 175, 80, 0.9);
+                color: white;
+                padding: 20px;
+                border-radius: 15px;
+                font-size: 16px;
+                font-weight: bold;
+                text-align: center;
+                z-index: 2000;
+                animation: fadeInOut 3s ease-in-out;
+                max-width: 300px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            `;
+            
+            // Добавляем CSS анимацию
+            if (!document.getElementById('motivationalAnimation')) {
+                const style = document.createElement('style');
+                style.id = 'motivationalAnimation';
+                style.textContent = `
+                    @keyframes fadeInOut {
+                        0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                        20% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                        80% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                        100% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(motivationalEl);
+            
+            // Удаляем через 3 секунды
+            setTimeout(() => {
+                if (motivationalEl.parentNode) {
+                    motivationalEl.parentNode.removeChild(motivationalEl);
+                }
+            }, 3000);
+        }
+        
+        // ========================
+        // 🎆 ГЕНЕРАЦИЯ РЕЙТИНГА 🎆
+        // ========================
+        
+        function generateRanking() {
+            if (!currentSession || currentSession.comparisonsMade === 0) {
+                // Генерируем случайный рейтинг для демо
+                return characters.map((char, index) => ({
+                    ...char,
+                    score: Math.round((characters.length - index) * 10 + Math.random() * 10),
+                    wins: Math.floor(Math.random() * 20),
+                    comparisons: Math.floor(Math.random() * 30)
+                })).sort(() => Math.random() - 0.5);
+            }
+            
+            // Используем транзитивный алгоритм
+            const scores = currentSession.calculateScores();
+            
+            return scores.map(([totalWins, characterIndex], place) => {
+                const character = characters[characterIndex];
+                const directWins = Array.from(currentSession.results.entries())
+                    .filter(([key, winner]) => winner === characterIndex).length;
+                
+                // Простой рейтинг на основе побед
+                const rating = totalWins;
+                
+                return {
+                    place: place + 1,
+                    name: character.name,
+                    emoji: character.emoji,
+                    score: rating,
+                    wins: directWins,
+                    comparisons: currentSession.compCounts.get(characterIndex) || 0
+                };
+            });
+        }
+        
+        function showRanking() {
+            const ranking = generateRanking();
+            displayRanking(ranking);
+            showScreen('ranking');
+        }
+        
+        function displayRanking(ranking) {
+            const container = document.getElementById('rankingList');
+            container.innerHTML = '';
+            
+            // Добавляем информацию о режиме
+            if (currentMode) {
+                const modeInfo = document.createElement('div');
+                modeInfo.className = 'motivational';
+                modeInfo.style.cssText = 'margin-bottom: 20px; text-align: center; font-size: 14px;';
+                modeInfo.innerHTML = `
+                    ${currentMode.emoji} <strong>Режим:</strong> ${currentMode.name}<br>
+                    🎯 <strong>Точность:</strong> ${currentMode.accuracy}<br>
+                    ${currentSession ? `🔢 <strong>Сравнений:</strong> ${currentSession.comparisonsMade}` : ''}
+                `;
+                container.appendChild(modeInfo);
+            }
+            
+            ranking.slice(0, 15).forEach((char, index) => {
+                const item = document.createElement('div');
+                item.className = 'ranking-item';
+                
+                // Особые эмодзи для топ-3
+                let rankEmoji = '';
+                let rankClass = '';
+                if (index === 0) {
+                    rankEmoji = '🥇';
+                    rankClass = 'rank-gold';
+                } else if (index === 1) {
+                    rankEmoji = '🥈';
+                    rankClass = 'rank-silver';
+                } else if (index === 2) {
+                    rankEmoji = '🥉';
+                    rankClass = 'rank-bronze';
+                } else if (index < 10) {
+                    rankEmoji = '⭐';
+                } else {
+                    rankEmoji = '🔸';
+                }
+                
+                item.innerHTML = `
+                    <div class="rank-number ${rankClass}">${rankEmoji}</div>
+                    <div class="character-img" style="width: 40px; height: 40px; margin-right: 15px; font-size: 1.5em;">${char.emoji}</div>
+                    <div style="flex-grow: 1;">
+                        <div style="font-weight: bold; font-size: 16px;">${char.place}. ${char.name}</div>
+                        <div style="font-size: 12px; opacity: 0.7;">
+                            🏆 ${char.wins || 0} побед • 📊 ${char.score || 0} очков
+                            ${char.comparisons > 0 ? ` • 🔢 ${char.comparisons} сравн.` : ''}
+                        </div>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+            
+            // Добавляем инфо о полном рейтинге
+            if (ranking.length > 15) {
+                const moreInfo = document.createElement('div');
+                moreInfo.style.cssText = 'text-align: center; padding: 20px; opacity: 0.7; font-size: 14px;';
+                moreInfo.innerHTML = `И ещё ${ranking.length - 15} персонажей...<br>🎮 Оцени больше для точного рейтинга!`;
+                container.appendChild(moreInfo);
+            }
+            
+            // Добавляем статистику
+            if (currentSession && currentSession.comparisonsMade > 0) {
+                const stats = currentSession.getStatistics();
+                const statsInfo = document.createElement('div');
+                statsInfo.className = 'stats-info';
+                statsInfo.innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-number">${stats.comparisonsMade}</div>
+                        <div class="stat-label">Сравнений</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${Math.round(stats.completionPercentage)}%</div>
+                        <div class="stat-label">Готовность</div>
+                    </div>
+                `;
+                container.appendChild(statsInfo);
+            }
+        }
+        
+        // ========================
+        // 🎆 ИНИЦИАЛИЗАЦИЯ 🎆
+        // ========================
+        
+        // Инициализация
+        console.log('🏆 TMA Рейтинг персонажей загружен');
+        console.log('📱 Telegram WebApp:', !!tg);
+        console.log('🎯 Персонажей доступно:', characters.length);
+        console.log('⚙️ Режимы оценки:', Object.keys(evaluationModes));
+        
+        // Проверяем работу транзитивного алгоритма
+        const testSession = new TransitiveSession(5, 10);
+        console.log('🧪 Тест TransitiveSession:', testSession.isCompleted ? '❌' : '✅');
+        console.log('🔢 Неизвестных пар:', testSession.unknownPairs.size);
+        
+        // Показываем стартовый экран
+        showScreen('menu');
+        
+        // Уведомляем Telegram о готовности
+        if (tg) {
+            console.log('📡 TMA готово к работе!');
+        }
+    </script>
+</body>
+</html>

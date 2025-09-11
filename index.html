@@ -3,59 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TMA Test Page</title>
+    <title>🏆 TMA Рейтинг персонажей</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 50px;
-            background: #f0f0f0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .container {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            max-width: 400px;
-            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .status {
-            color: #28a745;
-            font-size: 18px;
-            font-weight: bold;
+            font-size: 1.5em;
+            margin: 20px 0;
+            color: #4ade80;
         }
         .link {
             display: inline-block;
             margin: 10px;
-            padding: 10px 20px;
-            background: #007bff;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.2);
             color: white;
             text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        .link:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        .info {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            text-align: left;
+        }
+        .url-box {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 10px;
             border-radius: 5px;
+            font-family: monospace;
+            word-break: break-all;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🚀 TMA Vercel Deploy</h1>
-        <p class="status">✅ Deployment Successful!</p>
-        <p>Твой Telegram Mini App успешно развёрнут на Vercel</p>
+        <h1>🏆 TMA Deploy</h1>
+        <div class="status">✅ GitHub Pages работает!</div>
+        <p>Ваше Telegram Mini App успешно развёрнуто на GitHub Pages</p>
         
         <div>
-            <a href="/web/index.html" class="link">🎮 Открыть TMA</a>
-            <a href="/api/health" class="link">🔍 Health Check</a>
-            <a href="/api/characters" class="link">👥 Characters API</a>
+            <a href="stable-tma.html" class="link">🎮 Стабильная TMA версия</a>
+            <a href="./web/simple-tma.html" class="link">🛠️ Простая версия</a>
+            <a href="./web/index.html" class="link">⚙️ Полная версия (API)</a>
         </div>
         
-        <hr style="margin: 20px 0;">
+        <div class="info">
+            <h3>📋 Настройка бота:</h3>
+            <ol>
+                <li>Обнови .env:</li>
+                <div class="url-box">
+                    TMA_DOMAIN=skintar.github.io/ZZZc
+                </div>
+                <li>@BotFather → Menu Button:</li>
+                <div class="url-box" id="bot-url">
+                    https://skintar.github.io/ZZZc/stable-tma.html
+                </div>
+                <li>Перезапусти бота: <code>python main.py</code></li>
+            </ol>
+        </div>
         
-        <h3>Следующие шаги:</h3>
-        <ol style="text-align: left;">
-            <li>Скопируй URL этой страницы</li>
-            <li>Замени в .env: <code>TMA_DOMAIN=твой-домен.vercel.app</code></li>
-            <li>@BotFather → Menu Button → URL: <code>https://твой-домен.vercel.app/web/index.html</code></li>
-            <li>Перезапусти локального бота</li>
-        </ol>
+        <div class="status" style="font-size: 1em; color: #fbbf24;">
+            ⚠️ Полная функциональность требует API сервер
+        </div>
+        
+        <div id="test-result" style="margin-top: 20px;"></div>
     </div>
+    
+    <script>
+        // Инициализация Telegram WebApp
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+            window.Telegram.WebApp.expand();
+            
+            // Обновляем URL для бота
+            document.getElementById('bot-url').textContent = window.location.origin + window.location.pathname + 'stable-tma.html';
+        }
+        
+        // Простая проверка статуса
+        setTimeout(() => {
+            document.getElementById('test-result').innerHTML = 
+                '<div style="background: rgba(72, 222, 128, 0.2); padding: 15px; border-radius: 10px; margin-top: 20px;">' +
+                '<h4>✅ GitHub Pages работает!</h4>' +
+                '<p>Время: ' + new Date().toLocaleString() + '</p>' +
+                '</div>';
+        }, 1000);
+    </script>
 </body>
 </html>
