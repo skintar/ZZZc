@@ -540,9 +540,9 @@ class BotHandlers:
             return
         
         try:
-            # Компактное сообщение с парой персонажей
-            char_a_emoji = CHARACTER_EMOJIS.get(char_a.name, "🎭")
-            char_b_emoji = CHARACTER_EMOJIS.get(char_b.name, "🎭")
+            # Компактное сообщение с парой персонажей (используем сердечки для сравнений)
+            char_a_emoji = "💖"  # Сердечко для всех персонажей в сравнениях
+            char_b_emoji = "💖"
             
             # Прогресс-бар
             total_results = len(session.results)
@@ -570,11 +570,11 @@ class BotHandlers:
                     keyboard_buttons = [
                         [
                             InlineKeyboardButton(
-                                text=f"{char_a_emoji} {char_a.name}", 
+                                text=f"💖 {char_a.name}", 
                                 callback_data=f"choose:{a}:{b}:a"
                             ),
                             InlineKeyboardButton(
-                                text=f"{char_b_emoji} {char_b.name}", 
+                                text=f"💖 {char_b.name}", 
                                 callback_data=f"choose:{a}:{b}:b"
                             )
                         ]
@@ -611,7 +611,7 @@ class BotHandlers:
             # Основное сообщение
             comparison_text = (
                 f"🤔 **Кто тебе больше нравится?**\n\n"
-                f"{char_a_emoji} **{char_a.name}**  🆚  {char_b_emoji} **{char_b.name}**\n\n"
+                f"💖 **{char_a.name}**  🆚  💖 **{char_b.name}**\n\n"
                 f"📊 {progress_bar} {progress_percent}%{motivational_text}"
             )
             
@@ -619,11 +619,11 @@ class BotHandlers:
             keyboard_buttons = [
                 [
                     InlineKeyboardButton(
-                        text=f"{char_a_emoji} {char_a.name}", 
+                        text=f"💖 {char_a.name}", 
                         callback_data=f"choose:{a}:{b}:a"
                     ),
                     InlineKeyboardButton(
-                        text=f"{char_b_emoji} {char_b.name}", 
+                        text=f"💖 {char_b.name}", 
                         callback_data=f"choose:{a}:{b}:b"
                     )
                 ]
