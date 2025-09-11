@@ -24,12 +24,6 @@ class BotConfig:
     memory_cleanup_interval: int = 1800  # 30 минут
     session_timeout_hours: int = 24  # Таймаут сессий
     
-    # Параметры базы данных
-    database_path: str = "character_bot.db"  # Путь к базе данных
-    use_database: bool = True  # Использовать базу данных вместо файлов
-    database_backup_interval: int = 1800  # Интервал бэкапа БД (30 минут)
-    database_vacuum_interval: int = 86400  # Интервал оптимизации БД (24 часа)
-    
     def __post_init__(self):
         """Валидация конфигурации после инициализации."""
         if not self.api_token or len(self.api_token) < 10:
@@ -61,11 +55,7 @@ class BotConfig:
                 auto_save_interval=int(os.getenv("AUTO_SAVE_INTERVAL", "5")),
                 max_cache_size=int(os.getenv("MAX_CACHE_SIZE", "1000")),
                 memory_cleanup_interval=int(os.getenv("MEMORY_CLEANUP_INTERVAL", "1800")),
-                session_timeout_hours=int(os.getenv("SESSION_TIMEOUT_HOURS", "24")),
-                database_path=os.getenv("DATABASE_PATH", "character_bot.db"),
-                use_database=os.getenv("USE_DATABASE", "true").lower() == "true",
-                database_backup_interval=int(os.getenv("DATABASE_BACKUP_INTERVAL", "1800")),
-                database_vacuum_interval=int(os.getenv("DATABASE_VACUUM_INTERVAL", "86400"))
+                session_timeout_hours=int(os.getenv("SESSION_TIMEOUT_HOURS", "24"))
             )
         except (ValueError, TypeError) as e:
             raise ValueError(f"Invalid environment variable value: {e}")
@@ -73,7 +63,7 @@ class BotConfig:
 
 # Список персонажей
 CHARACTER_NAMES = [
-    "Солдат 0", "Солдат 11", "Энби", "Николь", "Билли", "Нэкомата", "Коляда", "Бен",
+    "Солдат 11", "Энби", "Николь", "Билли", "Нэкомата", "Коляда", "Бен",
     "Антон", "Грейс", "Ликаон", "Эллен", "Корин", "Рина", "Бёрнис", "Цезарь", "Люси",
     "Пайпер", "Лайтер", "Пульхра", "Мияби", "Харумаса", "Янаги", "Сокаку", "Чжу Юань",
     "Цинъи", "Джейн", "Астра", "Эвелин", "Вивиан", "Хуго", "Гашетка", "Пань Иньху",
@@ -114,7 +104,6 @@ EVALUATION_MODES = {
 
 # Эмодзи для персонажей
 CHARACTER_EMOJIS = {
-    "Солдат 0": "🤖",
     "Солдат 11": "🔫",
     "Энби": "⚡",
     "Николь": "💼",
@@ -146,8 +135,8 @@ CHARACTER_EMOJIS = {
     "Вивиан": "🎨",
     "Хуго": "🏗️",
     "Гашетка": "🔗",
-    "Пань Инху": "🐅",
-    "Инсюань": "🌙",
+    "Пань Иньху": "🐅",
+    "Исюань": "🌙",
     "Фуфу": "🌺",
     "Юдзуха": "🍃",
     "Сет": "🏺",
