@@ -33,19 +33,23 @@ wheels/
 logs/
 *.log
 
-# Данные (для продакшена нужно использовать БД)
+# Данные и бэкапы
 global_stats.json
 global_stats.json.*
 new_characters.json
 sessions.json
-
-# Бэкапы
+active_sessions.json
+character_bot.db
 backups/
 *.backup
 
 # Временные файлы
 .DS_Store
 Thumbs.db
+*.tmp
+*.temp
 
-# Vercel
-.vercel
+# Устаревшие файлы
+*_old.*
+*_backup.*
+*_deprecated.*

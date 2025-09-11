@@ -119,9 +119,21 @@ class SimpleTransitiveSession:
         return self._current_pair
 
     def record_choice(self, pair: Tuple[int, int], winner: int) -> None:
+        # Валидация входных параметров
         if pair is None:
-            return
+            raise ValueError("pair cannot be None")
+        if not isinstance(pair, (tuple, list)) or len(pair) != 2:
+            raise ValueError("pair must be a tuple or list of two integers")
+        if not isinstance(winner, int):
+            raise ValueError("winner must be an integer")
+        
         a, b = pair
+        if not isinstance(a, int) or not isinstance(b, int):
+            raise ValueError("pair elements must be integers")
+        if a < 0 or b < 0 or a >= self.characters_count or b >= self.characters_count:
+            raise ValueError(f"pair indices must be in range [0, {self.characters_count-1}]")
+        if a == b:
+            raise ValueError("cannot compare character with itself")
         if winner not in pair:
             raise ValueError("winner must be one of pair")
 
@@ -218,6 +230,12 @@ class SimpleTransitiveSession:
         self.adj_rev = defaultdict(set)
         for i in range(self.characters_count):
             self.win_counts[i] = 0
+        
+        # Очищаем кэш
+        if hasattr(self, '_ancestors_cache'):
+            self._ancestors_cache.clear()
+        if hasattr(self, '_descendants_cache'):
+            self._descendants_cache.clear()
 
         # Снова добавим все прямые рёбра и их транзитивные следствия
         for (mn, mx), winner in self.results.items():
@@ -238,14 +256,28 @@ class SimpleTransitiveSession:
 
     def _add_relation_with_closure(self, u: int, v: int) -> None:
         """
-        Добавляет отношение u > v и транзитивно: A > B для
-        A ∈ Anc(u) ∪ {u}, B ∈ Desc(v) ∪ {v}.
-        Предполагается, что до вызова граф был в замыкании.
+        Оптимизированное добавление отношения u > v с транзитивным замыканием.
+        Использует кэширование для избежания повторных BFS.
         """
-        # Найдём всех предков u (включая u) и всех потомков v (включая v)
-        ancestors = self._collect_ancestors_inclusive(u)
-        descendants = self._collect_descendants_inclusive(v)
+        # Кэш для предков и потомков
+        if not hasattr(self, '_ancestors_cache'):
+            self._ancestors_cache = {}
+        if not hasattr(self, '_descendants_cache'):
+            self._descendants_cache = {}
+            
+        # Получаем предков u с кэшированием
+        if u not in self._ancestors_cache:
+            self._ancestors_cache[u] = self._collect_ancestors_inclusive(u)
+        ancestors = self._ancestors_cache[u]
+        
+        # Получаем потомков v с кэшированием
+        if v not in self._descendants_cache:
+            self._descendants_cache[v] = self._collect_descendants_inclusive(v)
+        descendants = self._descendants_cache[v]
 
+        # Обновляем отношения и сбрасываем кэш
+        nodes_to_invalidate = set()
+        
         # Для каждой пары (a, b) добавим ребро, если его ещё нет
         for a in ancestors:
             for b in descendants:
@@ -253,15 +285,25 @@ class SimpleTransitiveSession:
                     continue
                 if (a, b) in self.wins:
                     continue
+                    
                 # Добавляем новое ребро в замыкание
                 self.wins.add((a, b))
                 self.adj_fwd[a].add(b)
                 self.adj_rev[b].add(a)
-                # Инкремент побед
                 self.win_counts[a] += 1
+                
+                # Помечаем узлы для сброса кэша
+                nodes_to_invalidate.add(a)
+                nodes_to_invalidate.add(b)
+                
                 # Пара становится известной — убрать из unknown
                 mn, mx = (a, b) if a < b else (b, a)
                 self._unknown_pairs.discard((mn, mx))
+        
+        # Сбрасываем кэш для затронутых узлов
+        for node in nodes_to_invalidate:
+            self._ancestors_cache.pop(node, None)
+            self._descendants_cache.pop(node, None)
 
     def _collect_ancestors_inclusive(self, x: int) -> Set[int]:
         # Все, кто побеждает x (и их предки), плюс сам x

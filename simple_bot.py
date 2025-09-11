@@ -1,4 +1,4 @@
-"""Точка входа в приложение."""
+"""Упрощенный запуск бота только для продакшена (без веб-сервера)."""
 
 import asyncio
 import os
@@ -14,7 +14,6 @@ load_dotenv(Path(__file__).parent / ".env", override=True)
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config import BotConfig
-from bot import create_and_run_bot
 
 
 def validate_environment() -> None:
@@ -22,11 +21,7 @@ def validate_environment() -> None:
     # Проверяем наличие .env файла
     env_file = Path(__file__).parent / ".env"
     if not env_file.exists():
-        example_file = Path(__file__).parent / ".env.example"
-        if example_file.exists():
-            logging.error(f"Файл .env не найден. Скопируйте {example_file} в .env и настройте")
-        else:
-            logging.error("Файл .env не найден. Создайте файл с переменными окружения")
+        logging.error("Файл .env не найден. Создайте файл с переменными окружения")
         sys.exit(1)
     
     # Проверяем обязательные переменные
@@ -46,13 +41,6 @@ def validate_filesystem(config: BotConfig) -> None:
     if not characters_path.exists():
         logging.warning(f"Директория {config.characters_dir} не существует, создаем...")
         characters_path.mkdir(parents=True, exist_ok=True)
-    
-    # Проверяем наличие файлов персонажей
-    from config import CHARACTER_NAMES
-    character_files = list(characters_path.glob("*.jpg")) + list(characters_path.glob("*.png"))
-    if len(character_files) < len(CHARACTER_NAMES):
-        logging.warning(f"Найдено {len(character_files)} файлов персонажей из {len(CHARACTER_NAMES)} ожидаемых")
-        logging.info("Убедитесь, что все изображения персонажей находятся в директории Персонажи/")
     
     # Создаем рабочие директории
     data_dirs = ["data", "logs", "backups"]
@@ -88,7 +76,7 @@ def load_config() -> BotConfig:
 
 
 async def main() -> None:
-    """Главная функция приложения."""
+    """Главная функция приложения (только бот, без веб-сервера)."""
     # Настраиваем логирование
     logging.basicConfig(
         level=logging.INFO,
@@ -100,7 +88,7 @@ async def main() -> None:
     )
     
     try:
-        logging.info("🚀 Запуск бота...")
+        logging.info("🚀 Запуск бота (production mode)...")
         config = load_config()
         
         # Устанавливаем уровень логирования из конфигурации
@@ -110,17 +98,9 @@ async def main() -> None:
         from bot import CharacterBot
         bot = CharacterBot(config)
         
-        try:
-            # Запускаем бота
-            logging.info("🤖 Запуск Telegram бота (production mode)...")
-            await bot.start()
-        except KeyboardInterrupt:
-            logging.info("🛑 Бот остановлен пользователем")
-        except Exception as e:
-            logging.error(f"Ошибка во время работы бота: {e}")
-            raise
-        finally:
-            logging.info("✅ Завершение работы")
+        # Запускаем бота
+        logging.info("🤖 Запуск Telegram бота (production mode)...")
+        await bot.start()
             
     except Exception as e:
         logging.error(f"❌ Критическая ошибка: {e}")

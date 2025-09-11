@@ -13,6 +13,13 @@ from collections import defaultdict
 from models import Character, SimpleTransitiveSession as UserSession, RankingEntry
 from config import CHARACTER_NAMES, MESSAGES
 
+# Импортируем менеджер базы данных
+try:
+    from database import DatabaseManager
+    DATABASE_AVAILABLE = True
+except ImportError:
+    DATABASE_AVAILABLE = False
+    DatabaseManager = None
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +59,10 @@ class CharacterService:
                         image_path = os.path.join(self.characters_dir, f"{name}.png")
                         if os.path.exists(image_path):  # Проверяем существование файла
                             characters.append(Character(name=name, image_path=image_path))
+                            
+                    # Автоматически обновляем эмодзи для новых персонажей
+                    self._update_missing_emojis(names)
+                    
                 except (OSError, PermissionError) as e:
                     logger.error(f"Ошибка чтения директории {self.characters_dir}: {e}")
             
@@ -69,6 +80,30 @@ class CharacterService:
         
         logger.info(f"Загружено {len(characters)} персонажей")
         return characters
+    
+    def _update_missing_emojis(self, character_names: List[str]) -> None:
+        """Обновляет эмодзи для новых персонажей, которых нет в CHARACTER_EMOJIS."""
+        try:
+            from config import CHARACTER_EMOJIS
+            
+            # Добавляем эмодзи для новых персонажей
+            default_emojis = ["🎭", "🎪", "💫", "✨", "🌟", "🔥", "⚡", "🌈", "🌍", "🎆"]
+            emoji_index = 0
+            
+            missing_characters = []
+            for name in character_names:
+                if name not in CHARACTER_EMOJIS:
+                    # Добавляем случайный эмодзи в рантайме
+                    emoji = default_emojis[emoji_index % len(default_emojis)]
+                    CHARACTER_EMOJIS[name] = emoji
+                    emoji_index += 1
+                    missing_characters.append(name)
+            
+            if missing_characters:
+                logger.info(f"Добавлены эмодзи для новых персонажей: {missing_characters}")
+                
+        except Exception as e:
+            logger.warning(f"Ошибка обновления эмодзи: {e}")
 
     def reload_characters(self) -> int:
         """Перечитывает список персонажей из папки. Возвращает количество."""
@@ -112,23 +147,51 @@ class CharacterService:
     def get_characters_count(self) -> int:
         """Возвращает количество персонажей."""
         return len(self.characters)
+    
+    def get_newly_discovered_characters(self) -> List[str]:
+        """Возвращает список персонажей, которые были обнаружены в папке, но не в config.py."""
+        try:
+            from config import CHARACTER_NAMES
+            current_names = [c.name for c in self.characters]
+            newly_discovered = [name for name in current_names if name not in CHARACTER_NAMES]
+            return newly_discovered
+        except Exception as e:
+            logger.error(f"Ошибка при получении новых персонажей: {e}")
+            return []
 
 
 class SessionService:
     """Сервис для работы с сессиями пользователей с транзитивным ранжированием."""
     
-    def __init__(self, character_service: Optional['CharacterService'] = None):
+    def __init__(self, character_service: Optional['CharacterService'] = None, use_database: bool = True, database_path: str = "character_bot.db"):
         self._sessions: Dict[int, UserSession] = {}
-        self._global_stats_file = "global_stats.json"
-        self._global_stats = self._load_global_stats()
-        self._save_counter = 0  # Счетчик сохранений для контроля частоты бэкапов
-        self._new_characters_file = "new_characters.json"
-        self._new_characters = self._load_new_characters()
         self.character_service = character_service
         self._file_lock = threading.Lock()
         self._last_backup_hash: Optional[str] = None
-        self._sessions_file = "active_sessions.json"  # Файл для сохранения активных сессий
-        self._load_sessions()  # Загружаем сохраненные сессии при старте
+        
+        # Параметры базы данных
+        self.use_database = use_database and DATABASE_AVAILABLE
+        self.db_manager = None
+        
+        if self.use_database:
+            try:
+                self.db_manager = DatabaseManager(database_path)
+                logger.info(f"💾 Используем базу данных: {database_path}")
+                self._load_sessions_from_database()
+            except Exception as e:
+                logger.error(f"⚠️ Ошибка инициализации базы данных: {e}")
+                logger.info("📁 Переходим на файловое хранение")
+                self.use_database = False
+        
+        if not self.use_database:
+            # Файловое хранение (старый метод)
+            self._global_stats_file = "global_stats.json"
+            self._global_stats = self._load_global_stats()
+            self._save_counter = 0
+            self._new_characters_file = "new_characters.json"
+            self._new_characters = self._load_new_characters()
+            self._sessions_file = "active_sessions.json"
+            self._load_sessions()
 
     def _load_global_stats(self) -> Dict[int, List[str]]:
         """Загружает глобальную статистику из файла с улучшенной обработкой ошибок."""
@@ -162,8 +225,8 @@ class SessionService:
                 import shutil
                 shutil.copy2(self._global_stats_file, backup_path)
                 logger.info(f"Поврежденный файл сохранен как {backup_path}")
-            except Exception:
-                pass
+            except (IOError, OSError) as e:
+                logger.error(f"Ошибка создания бэкапа поврежденного файла: {e}")
             return {}
         except (IOError, OSError) as e:
             logger.error(f"Ошибка чтения {self._global_stats_file}: {e}")
@@ -388,7 +451,11 @@ class SessionService:
                 for chunk in iter(lambda: f.read(8192), b''):
                     md5.update(chunk)
             return md5.hexdigest()
-        except Exception:
+        except (IOError, OSError) as e:
+            logger.error(f"Ошибка чтения файла для хэша: {e}")
+            return None
+        except Exception as e:
+            logger.error(f"Неожиданная ошибка при вычислении хэша: {e}")
             return None
     
     def _load_new_characters(self) -> Dict[str, List[str]]:
@@ -472,19 +539,14 @@ class SessionService:
                     new_chars = self.get_new_characters_for_user(user_id)
                     message = (
                         f"🎉 **Мы добавили новых персонажей!** 🎉\n\n"
-                        f"Добавь их в свою статистику:\n"
+                        f"Новые персонажи:\n"
                         f"{', '.join(new_chars)}\n\n"
-                        f"Нажми кнопку ниже, чтобы оценить новых персонажей!"
+                        f"Создайте новый рейтинг, чтобы включить их в оценку!"
                     )
                     
-                    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-                    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                        [InlineKeyboardButton(text="🎯 Оценить новых персонажей", callback_data="rate_new_characters")]
-                    ])
-                    
-                    # Отправляем уведомление (асинхронно, но без await)
+                    # Отправляем уведомление без дополнительных кнопок (асинхронно, но без await)
                     asyncio.create_task(
-                        bot.send_message(user_id, message, reply_markup=keyboard, parse_mode="Markdown")
+                        bot.send_message(user_id, message, parse_mode="Markdown")
                     )
                     
                     logger.info(f"Отправлено уведомление о новых персонажах пользователю {user_id}")
@@ -558,17 +620,27 @@ class SessionService:
         return self._sessions.get(user_id)
     
     def record_choice(self, user_id: int, pair: tuple, winner: int) -> None:
-        """Записывает выбор пользователя и сохраняет сессию."""
+        """Записывает выбор пользователя с отложенным сохранением."""
         session = self._sessions.get(user_id)
         if session:
             session.record_choice(pair, winner)
-            self._save_sessions()  # Сохраняем после каждого выбора
+            # Отложенное сохранение - сохраняем только каждые 5 выборов или при завершении
+            if session.comparisons_made % 5 == 0 or session.is_completed:
+                self._save_sessions()
+            else:
+                # Помечаем как измененное для отложенного сохранения
+                if not hasattr(self, '_dirty_sessions'):
+                    self._dirty_sessions = set()
+                self._dirty_sessions.add(user_id)
     
     def undo_last_choice(self, user_id: int) -> bool:
-        """Отменяет последний выбор пользователя."""
+        """Отменяет последний выбор пользователя с отложенным сохранением."""
         session = self._sessions.get(user_id)
         if session and session.undo_last_choice():
-            self._save_sessions()  # Сохраняем после отмены
+            # Отложенное сохранение
+            if not hasattr(self, '_dirty_sessions'):
+                self._dirty_sessions = set()
+            self._dirty_sessions.add(user_id)
             return True
         return False
     
@@ -613,6 +685,32 @@ class SessionService:
             self._save_sessions()  # Сохраняем изменения
         
         return removed_count
+    
+    def flush_dirty_sessions(self) -> None:
+        """Сохраняет все отложенные сессии."""
+        if hasattr(self, '_dirty_sessions') and self._dirty_sessions:
+            logger.debug(f"Сохраняем {len(self._dirty_sessions)} отложенных сессий")
+            self._save_sessions()
+            self._dirty_sessions.clear()
+    
+    def force_save_with_backup(self) -> None:
+        """Принудительно сохраняет все данные с созданием бэкапа."""
+        try:
+            # Сохраняем отложенные сессии
+            self.flush_dirty_sessions()
+            
+            # Сохраняем сессии
+            self._save_sessions()
+            
+            # Сохраняем глобальную статистику
+            self.ranking_service._save_global_stats()
+            
+            # Создаем бэкап
+            self.create_backup()
+            
+            logger.info("Успешно сохранены все данные с бэкапом")
+        except Exception as e:
+            logger.error(f"Ошибка при принудительном сохранении: {e}")
 
     def create_session(self, user_id: int, characters_count: int = None, max_comparisons: int = None) -> Optional[UserSession]:
         """Создает новую сессию для пользователя с валидацией."""

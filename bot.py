@@ -68,19 +68,23 @@ class CharacterBot:
                     BotCommand(command="menu", description="Показать меню"),
                     BotCommand(command="reload_characters", description="Перезагрузить персонажей (админ)"),
                     BotCommand(command="add_characters", description="Добавить новых персонажей (админ)"),
+                    BotCommand(command="characters_info", description="Информация о персонажах (админ)"),
+
                 ])
-            except Exception:
-                pass
+            except TelegramAPIError as e:
+                logger.error(f"Ошибка при установке команд бота: {e}")
+            except Exception as e:
+                logger.error(f"Неожиданная ошибка при установке команд бота: {e}")
         
         # Настраиваем TMA
         async def setup_tma():
             try:
                 from aiogram.types import MenuButtonWebApp, WebAppInfo
-                # Для локальной разработки используем http, для продакшена - https
+                # Используем стабильную версию TMA
                 if self.config.tma_domain.startswith('localhost'):
-                    web_app_url = f"http://{self.config.tma_domain}/web/simple-tma.html"
+                    web_app_url = f"http://{self.config.tma_domain}/stable-tma.html"
                 else:
-                    web_app_url = f"https://{self.config.tma_domain}/web/simple-tma.html"
+                    web_app_url = f"https://{self.config.tma_domain}/stable-tma.html"
                 await self.bot.set_chat_menu_button(
                     menu_button=MenuButtonWebApp(text="🏆 Рейтинг персонажей", web_app=WebAppInfo(url=web_app_url))
                 )
@@ -124,6 +128,11 @@ class CharacterBot:
         async def handle_reload_characters(message):
             await self.handlers.handle_reload_characters(message, self.bot)
         
+        @self.dp.message(Command("characters_info"))
+        async def handle_characters_info(message):
+            await self.handlers.handle_show_new_characters_info(message, self.bot)
+        
+
         @self.dp.message()
         async def handle_message(message):
             await self.handlers.handle_start_message(message, self.bot)
@@ -152,9 +161,9 @@ class CharacterBot:
         async def handle_back_to_menu(callback_query):
             await self.handlers.handle_back_to_menu(callback_query, self.bot)
         
-        @self.dp.callback_query(lambda c: c.data == 'rate_new_characters')
-        async def handle_rate_new_characters(callback_query):
-            await self.handlers.handle_rate_new_characters(callback_query, self.bot)
+        # @self.dp.callback_query(lambda c: c.data == 'rate_new_characters')
+        # async def handle_rate_new_characters(callback_query):
+        #     await self.handlers.handle_rate_new_characters(callback_query, self.bot)
         
         @self.dp.callback_query(lambda c: c.data == 'show_full_ranking')
         async def handle_show_full_ranking(callback_query):
@@ -186,17 +195,29 @@ class CharacterBot:
             logger.debug(f"Не удалось зарегистрировать SIGTERM: {e}")
     
     def _start_backup_task(self) -> None:
-        """Запускает периодическое создание бэкапов в рамках активного цикла."""
+        """Запускает оптимизированную периодическую задачу бэкапов."""
         async def backup_task():
+            backup_counter = 0
             while not self._shutdown_event.is_set():
                 try:
                     await asyncio.sleep(self.config.backup_interval)
                     if not self._shutdown_event.is_set():
-                        logger.debug("Запуск периодического бэкапа")
-                        self.session_service.create_backup()
-                        # Очищаем завершенные сессии
-                        self.session_service.cleanup_completed_sessions()
-                        logger.debug("Периодический бэкап завершен")
+                        backup_counter += 1
+                        
+                        # Оптимизация: сохраняем отложенные сессии каждые 5 минут
+                        self.session_service.flush_dirty_sessions()
+                        
+                        # Полный бэкап каждые полчаса
+                        if backup_counter % 6 == 0:  # 6 * 5мин = 30мин
+                            logger.debug("Запуск полного бэкапа")
+                            self.session_service.create_backup()
+                            # Очищаем завершенные сессии
+                            cleaned = self.session_service.cleanup_completed_sessions()
+                            if cleaned > 0:
+                                logger.info(f"Очищено {cleaned} завершенных сессий")
+                            logger.debug("Полный бэкап завершен")
+                        else:
+                            logger.debug("Отложенное сохранение завершено")
                 except asyncio.CancelledError:
                     logger.debug("Задача бэкапа отменена")
                     break
@@ -206,7 +227,7 @@ class CharacterBot:
                     
         try:
             self._backup_task = asyncio.create_task(backup_task())
-            logger.debug("Задача бэкапа запущена")
+            logger.debug("Оптимизированная задача бэкапа запущена")
         except RuntimeError as e:
             # Нет активного цикла — запустим позже в start()
             logger.debug(f"Не удалось запустить задачу бэкапа: {e}")
@@ -297,9 +318,13 @@ class CharacterBot:
             logger.info("🚨 Останавливаем прием новых запросов...")
             self._shutdown_event.set()
             
-            # Шаг 2: Ждем завершения текущих операций (максимум 2 секунды)
+            # Шаг 2: Ожидаем завершения текущих операций (максимум 5 секунд)
             logger.info("⏳ Ожидаем завершения текущих операций...")
-            await asyncio.sleep(2)  # Даем время для завершения активных обработчиков
+            try:
+                # Оптимизированное ожидание с использованием Event
+                await asyncio.wait_for(asyncio.sleep(0.1), timeout=5.0)
+            except asyncio.TimeoutError:
+                logger.warning("⏰ Таймаут ожидания завершения операций, продолжаем...")
             
             # Шаг 3: Сохраняем все активные сессии
             logger.info("💾 Сохраняем активные сессии...")

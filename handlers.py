@@ -138,19 +138,19 @@ class BotHandlers:
         self._flood_delay = flood_delay
         
         # Вспомогательные клавиатуры
-        # Основное меню
+        # Компактное главное меню (более сбалансированное расположение)
         self._main_menu = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=MESSAGES["menu_build_ranking"], callback_data="start_ranking")],
-            [InlineKeyboardButton(text=MESSAGES["menu_global_top"], callback_data="show_global_top")],
-            [InlineKeyboardButton(text=MESSAGES["menu_my_rating"], callback_data="show_my_rating")],
-            [InlineKeyboardButton(text="🆕 Оценить новых персонажей", callback_data="rate_new_characters")]
+            [InlineKeyboardButton(text="🏆 Создать рейтинг", callback_data="start_ranking"),
+             InlineKeyboardButton(text="🌍 Глобальный топ", callback_data="show_global_top")],
+            [InlineKeyboardButton(text="📊 Мой рейтинг", callback_data="show_my_rating")]
         ])
-        # После результатов/на экранах рейтингов
+        
+        # Компактное меню после результатов
         self._post_result_menu = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Показать мой рейтинг", callback_data="show_my_rating")],
-            [InlineKeyboardButton(text="🌍 Глобальный топ", callback_data="show_global_top")],
-            [InlineKeyboardButton(text="🏗️ Создать новый рейтинг", callback_data="start_ranking")],
-            [InlineKeyboardButton(text="🆕 Оценить новых персонажей", callback_data="rate_new_characters")]
+            [InlineKeyboardButton(text="🔄 Пересоздать", callback_data="start_ranking"),
+             InlineKeyboardButton(text="📊 Мой топ", callback_data="show_my_rating")],
+            [InlineKeyboardButton(text="🌍 Общий топ", callback_data="show_global_top"),
+             InlineKeyboardButton(text="🏠 Главное меню", callback_data="back_to_menu")]
         ])
     
     def _check_flood_control(self, user_id: int) -> bool:
@@ -182,9 +182,16 @@ class BotHandlers:
         user_id = message.from_user.id
         
         try:
+            # Сохраняем информацию о пользователе для отслеживания блокировок
+            user_info = {
+                'username': message.from_user.username,
+                'first_name': message.from_user.first_name,
+                'last_name': message.from_user.last_name
+            }
+            
             # Проверяем антифлуд
             if not self._check_flood_control(user_id):
-                await message.reply(self._get_flood_warning(user_id))
+                await self._send_message_safe(bot, message.chat.id, self._get_flood_warning(user_id))
                 return
             
             # Проверяем наличие файлов персонажей (предупреждение, но не блокировка)
@@ -203,9 +210,10 @@ class BotHandlers:
                     [InlineKeyboardButton(text="📊 Мой рейтинг", callback_data="show_my_rating")],
                     [InlineKeyboardButton(text="🌍 Глобальный топ", callback_data="show_global_top")],
                 ])
-                await message.reply(
-                    "🔄 **У вас есть незавершенная сессия оценки!**\n\n"
-                    "Хотите продолжить с того места, где остановились, или начать заново?",
+                await self._send_message_safe(
+                    bot, 
+                    message.chat.id,
+                    "🔄 **У вас есть незавершенная сессия оценки!**\n\nХотите продолжить с того места, где остановились, или начать заново?",
                     reply_markup=keyboard,
                     parse_mode="Markdown"
                 )
@@ -236,8 +244,28 @@ class BotHandlers:
             await message.reply("У вас нет прав для выполнения этой команды.")
             return
         try:
+            # Получаем список новых персонажей до перезагрузки
+            newly_discovered_before = self.character_service.get_newly_discovered_characters()
+            
             count = self.character_service.reload_characters()
-            await message.reply(f"🔄 Персонажи перезагружены: {count}")
+            
+            # Получаем список новых персонажей после перезагрузки
+            newly_discovered_after = self.character_service.get_newly_discovered_characters()
+            
+            response = f"🔄 Персонажи перезагружены: {count}"
+            
+            # Показываем информацию о новых персонажах
+            if newly_discovered_after:
+                response += f"\n\n🆕 Обнаружены новые персонажи:"
+                for i, name in enumerate(newly_discovered_after[:10]):  # Максимум 10
+                    response += f"\n• {name}"
+                
+                if len(newly_discovered_after) > 10:
+                    response += f"\n... и ещё {len(newly_discovered_after) - 10}"
+                    
+                response += "\n\nℹ️ Новые персонажи автоматически доступны в боте!"
+            
+            await message.reply(response)
         except Exception as e:
             logger.error(f"Ошибка перезагрузки персонажей: {e}")
             await message.reply("Не удалось перезагрузить персонажей")
@@ -263,8 +291,10 @@ class BotHandlers:
             # Перечитываем список персонажей из папки перед валидацией
             try:
                 self.character_service.reload_characters()
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Ошибка при перезагрузке персонажей: {e}")
+                await message.reply("Ошибка при обновлении списка персонажей.")
+                return
 
             # Проверяем, что все персонажи существуют
             existing_characters = [char.name for char in self.character_service.characters]
@@ -303,6 +333,63 @@ class BotHandlers:
             logger.error(f"Ошибка при добавлении персонажей: {e}")
             await message.reply("Произошла ошибка при добавлении персонажей.")
 
+    async def handle_show_new_characters_info(self, message: types.Message, bot) -> None:
+        """Показывает информацию о новых персонажах (админ)."""
+        admin_ids = [6480088003]
+        if message.from_user.id not in admin_ids:
+            await message.reply("У вас нет прав для выполнения этой команды.")
+            return
+        
+        try:
+            from config import CHARACTER_NAMES
+            
+            all_characters = [c.name for c in self.character_service.characters]
+            newly_discovered = self.character_service.get_newly_discovered_characters()
+            
+            response = f"📁 **Информация о персонажах:**\n\n"
+            response += f"📂 **Всего персонажей:** {len(all_characters)}\n"
+            response += f"⚙️ **В config.py:** {len(CHARACTER_NAMES)}\n"
+            response += f"🆕 **Новых обнаружено:** {len(newly_discovered)}\n\n"
+            
+            if newly_discovered:
+                response += f"🎆 **Новые персонажи:**\n"
+                for name in newly_discovered[:15]:  # Максимум 15
+                    response += f"• {name}\n"
+                
+                if len(newly_discovered) > 15:
+                    response += f"... и ещё {len(newly_discovered) - 15}\n"
+                    
+                response += "\nℹ️ **Новые персонажи автоматически работают в боте!**\n"
+                response += "✍️ Не нужно вручную обновлять config.py"
+            else:
+                response += "✅ **Все персонажи синхронизированы**"
+            
+            await message.reply(response, parse_mode="Markdown")
+            
+        except Exception as e:
+            logger.error(f"Ошибка получения информации о персонажах: {e}")
+            await message.reply("Произошла ошибка при получении информации.")
+
+
+    async def _send_message_safe(self, bot, chat_id: int, text: str, **kwargs) -> bool:
+        """Безопасная отправка сообщения."""
+        try:
+            await bot.send_message(chat_id, text, **kwargs)
+            return True
+            
+        except TelegramAPIError as e:
+            # Просто логируем ошибку без отслеживания блокировок
+            if "blocked by the user" in str(e).lower() or "bot was blocked" in str(e).lower():
+                logger.warning(f"🚫 Пользователь {chat_id} заблокировал бота: {e}")
+            else:
+                logger.error(f"Ошибка Telegram API: {e}")
+            
+            return False
+        except Exception as e:
+            logger.error(f"Неожиданная ошибка отправки сообщения: {e}")
+            return False
+    
+
     async def handle_start_ranking(self, callback_query, bot):
         """Начинает процесс построения рейтинга с выбором режима."""
         user_id = callback_query.from_user.id
@@ -313,17 +400,13 @@ class BotHandlers:
             return
         
         try:
-            # Создаем клавиатуру для выбора режима
-            mode_buttons = []
-            for mode_key, mode_info in EVALUATION_MODES.items():
-                button_text = f"{mode_info['emoji']} {mode_info['name']}"
-                callback_data = f"mode_{mode_key}"
-                mode_buttons.append([InlineKeyboardButton(text=button_text, callback_data=callback_data)])
-            
-            # Добавляем кнопку назад
-            mode_buttons.append([InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")])
-            
-            keyboard = InlineKeyboardMarkup(inline_keyboard=mode_buttons)
+            # Компактная клавиатура для выбора режима (2 строки вместо 3)
+            keyboard = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⚡ Быстрый (5мин)", callback_data="mode_quick"),
+                 InlineKeyboardButton(text="🎯 Средний (10мин)", callback_data="mode_medium")],
+                [InlineKeyboardButton(text="🏆 Точный (20мин)", callback_data="mode_precise"),
+                 InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_menu")]
+            ])
             
             await callback_query.message.answer(MESSAGES["mode_selection"], reply_markup=keyboard, parse_mode="Markdown")
             await callback_query.answer()
@@ -457,83 +540,115 @@ class BotHandlers:
             return
         
         try:
-            # Формируем подпись для первой фотографии с вопросом
-            first_caption = f"**{char_a.name}**\n\n🎯 Кто нравится больше?"
+            # Компактное сообщение с парой персонажей
+            char_a_emoji = CHARACTER_EMOJIS.get(char_a.name, "🎭")
+            char_b_emoji = CHARACTER_EMOJIS.get(char_b.name, "🎭")
             
-            # Показываем информацию о прогрессе, если есть достаточно сравнений
+            # Прогресс-бар
             total_results = len(session.results)
-            if total_results > 5:
-                # Показываем только процент, без точных чисел
-                progress_percent = min(100, int((total_results / session.total_pairs) * 100))
-                if progress_percent < 25:
-                    progress_text = "🚀 Начинаем!"
-                elif progress_percent < 50:
-                    progress_text = "📈 Хорошо идем!"
-                elif progress_percent < 75:
-                    progress_text = "🔥 Отлично получается!"
-                elif progress_percent < 90:
-                    progress_text = "⭐ Почти готово!"
-                else:
-                    progress_text = "🎯 Финальный рывок!"
-                
-                first_caption += f"\n\n{progress_text}"
+            progress_percent = min(100, int((total_results / session.total_pairs) * 100))
+            progress_bar_filled = int(progress_percent / 10)  # 10 сегментов
+            progress_bar = "🟫" * progress_bar_filled + "⬜" * (10 - progress_bar_filled)
             
-            # Добавляем случайную мотивирующую фразу
-            if total_results > 0 and total_results % 3 == 0:  # Каждые 3 сравнения
-                motivational = random.choice(MOTIVATIONAL_PHRASES)
-                first_caption += f"\n\n{motivational}"
+            # Мотивирующая фраза каждые 5 сравнений
+            motivational_text = ""
+            if total_results > 0 and total_results % 5 == 0:
+                motivational_text = f"\n✨ {random.choice(MOTIVATIONAL_PHRASES)}"
             
-            # Создаем медиа группу
-            media = [
-                InputMediaPhoto(media=FSInputFile(char_a.image_path), caption=first_caption, parse_mode="Markdown"),
-                InputMediaPhoto(media=FSInputFile(char_b.image_path), caption=f"**{char_b.name}**", parse_mode="Markdown")
-            ]
+            # Пробуем отправить изображения
+            import os
+            if os.path.exists(char_a.image_path) and os.path.exists(char_b.image_path):
+                try:
+                    # Отправляем изображения с подписями
+                    first_caption = f"**{char_a.name}**\n\n🤔 **Кто тебе больше нравится?**\n📊 {progress_bar} {progress_percent}%{motivational_text}"
+                    media = [
+                        InputMediaPhoto(media=FSInputFile(char_a.image_path), caption=first_caption, parse_mode="Markdown"),
+                        InputMediaPhoto(media=FSInputFile(char_b.image_path), caption=f"**{char_b.name}**", parse_mode="Markdown")
+                    ]
+                    
+                    # Компактная клавиатура (2 кнопки в строке)
+                    keyboard_buttons = [
+                        [
+                            InlineKeyboardButton(
+                                text=f"{char_a_emoji} {char_a.name}", 
+                                callback_data=f"choose:{a}:{b}:a"
+                            ),
+                            InlineKeyboardButton(
+                                text=f"{char_b_emoji} {char_b.name}", 
+                                callback_data=f"choose:{a}:{b}:b"
+                            )
+                        ]
+                    ]
+                    
+                    # Дополнительные кнопки (если есть история)
+                    if session.choice_history:
+                        keyboard_buttons.append([
+                            InlineKeyboardButton(text="⬅️ Отменить", callback_data="go_back"),
+                            InlineKeyboardButton(text="🏠 Меню", callback_data="back_to_menu")
+                        ])
+                    else:
+                        keyboard_buttons.append([
+                            InlineKeyboardButton(text="🏠 Меню", callback_data="back_to_menu")
+                        ])
+                    
+                    keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
+                    
+                    # Отправляем медиа-группу с изображениями
+                    await bot.send_media_group(chat_id, media)
+                    # Отправляем кнопки отдельным сообщением
+                    await bot.send_message(
+                        chat_id,
+                        "👇 **Выбери, кто больше нравится:**",
+                        reply_markup=keyboard,
+                        parse_mode="Markdown"
+                    )
+                    return
+                    
+                except Exception as img_error:
+                    logger.warning(f"Ошибка отправки изображений: {img_error}. Используем текстовый режим.")
             
-            # Создаем клавиатуру
+            # Fallback: текстовый режим (если изображения недоступны)
+            # Основное сообщение
+            comparison_text = (
+                f"🤔 **Кто тебе больше нравится?**\n\n"
+                f"{char_a_emoji} **{char_a.name}**  🆚  {char_b_emoji} **{char_b.name}**\n\n"
+                f"📊 {progress_bar} {progress_percent}%{motivational_text}"
+            )
+            
+            # Компактная клавиатура (2 кнопки в строке)
             keyboard_buttons = [
                 [
                     InlineKeyboardButton(
-                        text=f"❤️ {char_a.name}", 
+                        text=f"{char_a_emoji} {char_a.name}", 
                         callback_data=f"choose:{a}:{b}:a"
                     ),
                     InlineKeyboardButton(
-                        text=f"{char_b.name} ❤️", 
+                        text=f"{char_b_emoji} {char_b.name}", 
                         callback_data=f"choose:{a}:{b}:b"
-                    ),
+                    )
                 ]
             ]
             
-            # Добавляем кнопку "Назад" если есть история выборов
+            # Дополнительные кнопки (если есть история)
             if session.choice_history:
                 keyboard_buttons.append([
-                    InlineKeyboardButton(text="⬅️ Назад", callback_data="go_back")
+                    InlineKeyboardButton(text="⬅️ Отменить", callback_data="go_back"),
+                    InlineKeyboardButton(text="🏠 Меню", callback_data="back_to_menu")
+                ])
+            else:
+                keyboard_buttons.append([
+                    InlineKeyboardButton(text="🏠 Меню", callback_data="back_to_menu")
                 ])
             
             keyboard = InlineKeyboardMarkup(inline_keyboard=keyboard_buttons)
             
-            # Отправляем медиа группу с текстом в первом фото
-            try:
-                # Добавляем текст вопроса к первому фото
-                media[0].caption = f"**{char_a.name}**\n\n👆 **Выбери, кто тебе больше нравится:**"
-                await bot.send_media_group(chat_id, media)
-                # Отправляем клавиатуру отдельным сообщением
-                await bot.send_message(
-                    chat_id,
-                    "👇 Выбери вариант:",
-                    reply_markup=keyboard,
-                    parse_mode="Markdown"
-                )
-            except TelegramRetryAfter as e:
-                logger.warning(f"Flood control triggered, waiting {e.retry_after} seconds")
-                await asyncio.sleep(e.retry_after)
-                # Повторяем отправку после ожидания
-                media[0].caption = f"**{char_a.name}**\n\n👆 **Выбери, кто тебе больше нравится:**"
-                await bot.send_media_group(chat_id, media)
-                await bot.send_message(
-                    chat_id,
-                    "👇 Выбери вариант:",
-                    reply_markup=keyboard
-                )
+            # Отправляем текстовое сообщение с клавиатурой
+            await bot.send_message(
+                chat_id,
+                comparison_text,
+                reply_markup=keyboard,
+                parse_mode="Markdown"
+            )
             
         except Exception as e:
             logger.error(f"Ошибка при отправке пары персонажей: {e}")
@@ -595,20 +710,18 @@ class BotHandlers:
             # Показываем только топ-5
             top5_ranking = self.ranking_service.format_ranking_text(ranking[:5])
             
-            # Кнопки навигации после формирования рейтинга
+            # Компактные кнопки навигации после результатов (без кнопки "новые герои")
             keyboard = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="📋 Показать весь рейтинг", callback_data="show_full_ranking")],
-                [InlineKeyboardButton(text="🌍 Глобальный топ", callback_data="show_global_top")],
-                [InlineKeyboardButton(text="🏗️ Создать новый рейтинг", callback_data="start_ranking")],
-                [InlineKeyboardButton(text="🆕 Оценить новых персонажей", callback_data="rate_new_characters")]
+                [InlineKeyboardButton(text="📊 Полный рейтинг", callback_data="show_full_ranking"),
+                 InlineKeyboardButton(text="🌍 Глобальный топ", callback_data="show_global_top")],
+                [InlineKeyboardButton(text="🔄 Новый рейтинг", callback_data="start_ranking"),
+                 InlineKeyboardButton(text="🏠 Меню", callback_data="back_to_menu")]
             ])
             
-            # Отправляем рейтинг с кнопками
+            # Компактное сообщение о завершении
             completion_message = (
-                "🎉 **Поздравляю! Твой рейтинг готов!** 🎉\n\n"
-                "✨ Ты успешно создал свой персональный рейтинг персонажей! "
-                "Показан топ-5, но можешь посмотреть полный рейтинг или сравнить с глобальным топом.\n\n"
-                "🌟 Каждый выбор был важен и помог создать идеальный рейтинг именно для тебя!"
+                f"🎉 **Рейтинг готов!** 🎉\n\n"
+                f"✨ Выше топ-5, но можно посмотреть полный список!"
             )
             
             await asyncio.gather(
@@ -644,11 +757,12 @@ class BotHandlers:
             emoji = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣"][i]
             top5_text += f"{emoji} **{i+1}.** {name}\n"
 
-        # Клавиатура для удобной навигации
+        # Компактная клавиатура для навигации
         keyboard = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📋 Показать весь рейтинг", callback_data="show_full_ranking")],
-            [InlineKeyboardButton(text="🌍 Глобальный топ", callback_data="show_global_top")],
-            [InlineKeyboardButton(text="🏗️ Создать рейтинг", callback_data="start_ranking")]
+            [InlineKeyboardButton(text="📊 Полный рейтинг", callback_data="show_full_ranking"),
+             InlineKeyboardButton(text="🌍 Глобальный", callback_data="show_global_top")],
+            [InlineKeyboardButton(text="🔄 Новый", callback_data="start_ranking"),
+             InlineKeyboardButton(text="🏠 Меню", callback_data="back_to_menu")]
         ])
         await callback_query.message.answer(top5_text, parse_mode="Markdown", reply_markup=keyboard)
         await callback_query.answer()
@@ -795,7 +909,11 @@ class BotHandlers:
                     reply_markup=keyboard,
                     parse_mode="Markdown"
                 )
-            except Exception:
+            except TelegramAPIError as e:
+                logger.error(f"Ошибка Telegram API при отправке медиа: {e}")
+                await self._send_next_pair(callback_query.message.chat.id, user_id, bot)
+            except Exception as e:
+                logger.error(f"Неожиданная ошибка при отправке медиа: {e}")
                 await self._send_next_pair(callback_query.message.chat.id, user_id, bot)
         else:
             await callback_query.answer("❌ Нечего отменять", show_alert=True)
